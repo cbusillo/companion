@@ -31,6 +31,8 @@ export interface SurfacePanelInfo {
 	isRemote: boolean
 	hasFirmwareUpdates?: SurfaceFirmwareUpdateInfo
 	canChangePage?: boolean
+	/** Present only for a haptic-capable opened device; changes on every open. */
+	hapticFeedback?: { connectionId: string }
 }
 
 export interface SurfacePanel extends EventEmitter<SurfacePanelEvents> {
@@ -45,6 +47,7 @@ export interface SurfacePanel extends EventEmitter<SurfacePanelEvents> {
 	setConfig(config: any, force?: boolean): void
 	onVariablesChanged?: (allChangedVariables: ReadonlySet<string>) => void
 	quit(): void
+	triggerHapticFeedback?: (connectionId: string) => void
 
 	/**
 	 * If the surface will handle locking display of the locking state itself, this method should be implemented.

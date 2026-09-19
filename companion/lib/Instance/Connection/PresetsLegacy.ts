@@ -26,6 +26,7 @@ import {
 
 const DefaultStepOptions: Complete<ActionStepOptions> = {
 	runWhileHeld: [],
+	hapticDisabledSets: undefined,
 	name: undefined,
 }
 

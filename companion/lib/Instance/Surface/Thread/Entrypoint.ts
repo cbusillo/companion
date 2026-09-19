@@ -150,6 +150,11 @@ const ipcWrapper = new IpcWrapper<SurfaceModuleToHostEvents, HostToSurfaceModule
 
 			await plugin.setBrightness(msg.surfaceId, msg.brightness)
 		},
+		triggerHapticFeedback: async (msg) => {
+			if (!plugin || !pluginInitialized) throw new Error('Not initialized')
+
+			await plugin.triggerHapticFeedback(msg.surfaceId, msg.connectionId)
+		},
 		drawControls: async (msg) => {
 			if (!plugin || !pluginInitialized) throw new Error('Not initialized')
 

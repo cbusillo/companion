@@ -15,6 +15,7 @@ import {
 	MAX_REFERENCE_DEPTH,
 	referenceSurfaceIdDepth,
 } from '../../../Surface/ReferenceSurfaceId.js'
+import type { ButtonHapticFeedback } from '../../ButtonHapticFeedback.js'
 import { ControlBase } from '../../ControlBase.js'
 import type { ControlDependencies } from '../../ControlDependencies.js'
 import type {
@@ -143,7 +144,12 @@ export class ControlButtonReference
 		return (location ? this.deps.pageStore.getControlIdAt(location) : undefined) ?? undefined
 	}
 
-	pressControl(pressed: boolean, surfaceId: string | undefined, force?: boolean): void {
+	pressControl(
+		pressed: boolean,
+		surfaceId: string | undefined,
+		hapticFeedback: ButtonHapticFeedback | null,
+		force?: boolean
+	): void {
 		// Loop guard: stop forwarding once a press has hopped through too many references
 		if (referenceSurfaceIdDepth(surfaceId) >= MAX_REFERENCE_DEPTH) return
 
@@ -154,6 +160,7 @@ export class ControlButtonReference
 			targetControlId,
 			pressed,
 			mangleReferenceSurfaceId(surfaceId, this.controlId),
+			hapticFeedback,
 			force
 		)
 	}

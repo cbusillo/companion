@@ -1,15 +1,21 @@
 import { forwardRef, useCallback, useId, useImperativeHandle, useRef, useState } from 'react'
 import { Button } from '~/Components/Button'
+import { CheckboxInputField } from '~/Components/CheckboxInputField.js'
 import { Form, FormLabel } from '~/Components/Form.js'
 import { Grid } from '~/Components/Grid'
 import { Modal } from '~/Components/Modal'
 import { NumberInputField } from '~/Components/NumberInputField.js'
 import { SwitchInputField } from '~/Components/SwitchInputField'
 
-type EditDurationCompleteCallback = (duration: number, whileHeld: boolean) => void
+type EditDurationCompleteCallback = (duration: number, whileHeld: boolean, hapticFeedback: boolean) => void
 
 export interface EditDurationGroupPropertiesModalRef {
-	show(duration: number, whileHeld: boolean, completeCallback: EditDurationCompleteCallback): void
+	show(
+		duration: number,
+		whileHeld: boolean,
+		hapticFeedback: boolean,
+		completeCallback: EditDurationCompleteCallback
+	): void
 }
 
 export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupPropertiesModalRef>(
@@ -19,6 +25,7 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 
 		const [newDurationValue, setNewDurationValue] = useState<number | null>(null)
 		const [newWhileHeldValue, setNewWhileHeldValue] = useState<boolean | null>(null)
+		const [newHapticFeedbackValue, setNewHapticFeedbackValue] = useState<boolean | null>(null)
 
 		const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -30,21 +37,23 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 				setShow(false)
 				setNewDurationValue(null)
 				setNewWhileHeldValue(null)
+				setNewHapticFeedbackValue(null)
 
 				// completion callback
 				const cb = data?.[1]
-				if (!cb || newDurationValue === null || newWhileHeldValue === null) return
-				cb(newDurationValue, newWhileHeldValue)
+				if (!cb || newDurationValue === null || newWhileHeldValue === null || newHapticFeedbackValue === null) return
+				cb(newDurationValue, newWhileHeldValue, newHapticFeedbackValue)
 			},
-			[data, newDurationValue, newWhileHeldValue]
+			[data, newDurationValue, newWhileHeldValue, newHapticFeedbackValue]
 		)
 
 		useImperativeHandle(
 			ref,
 			() => ({
-				show(duration, whileHeld, completeCallback) {
+				show(duration, whileHeld, hapticFeedback, completeCallback) {
 					setNewDurationValue(duration)
 					setNewWhileHeldValue(whileHeld)
+					setNewHapticFeedbackValue(hapticFeedback)
 					setData([duration, completeCallback])
 					setShow(true)
 				},
@@ -58,6 +67,7 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 
 		const pressDurationFieldId = useId()
 		const whileHeldFieldId = useId()
+		const hapticFeedbackFieldId = useId()
 
 		return (
 			<Modal.Root open={show} onOpenChange={setShow} onOpenChangeComplete={onOpenChangeComplete}>
@@ -93,6 +103,17 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 											id={whileHeldFieldId}
 											value={!!newWhileHeldValue}
 											setValue={setNewWhileHeldValue}
+										/>
+									</Grid.Col>
+
+									<FormLabel htmlFor={hapticFeedbackFieldId} sm={4} column="sm">
+										Haptic feedback
+									</FormLabel>
+									<Grid.Col sm={8}>
+										<CheckboxInputField
+											id={hapticFeedbackFieldId}
+											value={!!newHapticFeedbackValue}
+											setValue={setNewHapticFeedbackValue}
 										/>
 									</Grid.Col>
 								</Form>

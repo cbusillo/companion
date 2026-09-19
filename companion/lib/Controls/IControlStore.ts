@@ -3,6 +3,7 @@ import type {
 	ExpressionParserOptions,
 	VariablesAndExpressionParser,
 } from '../Variables/VariablesAndExpressionParser.js'
+import type { ButtonHapticFeedback } from './ButtonHapticFeedback.js'
 import type { NewFeedbackValue } from './Entities/Types.js'
 import type { SomeControl } from './IControlFragments.js'
 
@@ -36,7 +37,13 @@ export interface IControlStore {
 	/**
 	 * Dispatch a press/release event to a control
 	 */
-	pressControl(controlId: string, pressed: boolean, surfaceId: string | undefined, force?: boolean): boolean
+	pressControl(
+		controlId: string,
+		pressed: boolean,
+		surfaceId: string | undefined,
+		hapticFeedback: ButtonHapticFeedback | null,
+		force?: boolean
+	): boolean
 
 	/**
 	 * Dispatch a rotate event to a control

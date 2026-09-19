@@ -9,6 +9,7 @@ import { ControlEntitiesEditor } from '~/Controls/EntitiesEditor.js'
 import { MyErrorBoundary } from '~/Resources/Error.js'
 import type { IControlActionStepsAndSetsService } from '~/Services/Controls/ControlActionStepsAndSetsService.js'
 import type { LocalVariablesStore } from '../../Controls/LocalVariablesStore.js'
+import { ActionSetHapticFeedbackCheckbox } from './ActionSetHapticFeedbackCheckbox.js'
 import { EditActionsRelease } from './EditActionsRelease.js'
 
 export interface ControlActionStepTabProps {
@@ -49,6 +50,8 @@ export function ControlActionStepTab({
 			</InlineHelpIcon>
 		</>
 	)
+	const hapticFeedbackEnabled = (setId: 'down' | 'up'): boolean =>
+		!selectedStepProps.options.hapticDisabledSets?.includes(setId)
 
 	return (
 		<>
@@ -139,6 +142,13 @@ export function ControlActionStepTab({
 						<MyErrorBoundary>
 							<ControlEntitiesEditor
 								heading={`Press actions`}
+								headingActions={[
+									<ActionSetHapticFeedbackCheckbox
+										key="haptic-feedback"
+										enabled={hapticFeedbackEnabled('down')}
+										setEnabled={(enabled) => service.setHapticFeedback(selectedKey, 'down', enabled)}
+									/>,
+								]}
 								controlId={controlId}
 								location={location}
 								listId={{ stepId: selectedKey, setId: 'down' }}
@@ -157,6 +167,7 @@ export function ControlActionStepTab({
 							action_sets={selectedStepProps.action_sets}
 							stepOptions={selectedStepProps.options}
 							stepId={selectedKey}
+							service={service}
 							removeSet={service.removeSet}
 							localVariablesStore={localVariablesStore}
 						/>

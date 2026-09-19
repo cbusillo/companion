@@ -35,6 +35,7 @@ import type {
 	VariablesAndExpressionParser,
 } from '../Variables/VariablesAndExpressionParser.js'
 import { createActionSetsTrpcRouter } from './ActionSetsTrpcRouter.js'
+import type { ButtonHapticFeedback } from './ButtonHapticFeedback.js'
 import type { ControlChangeEvents, ControlCommonEvents, ControlExternalDependencies } from './ControlDependencies.js'
 import type { ControlStore } from './ControlStore.js'
 import { createControlsTrpcRouter } from './ControlsTrpcRouter.js'
@@ -190,8 +191,14 @@ export class ControlsController {
 		return this.#store.getAllControls()
 	}
 
-	pressControl(controlId: string, pressed: boolean, surfaceId: string | undefined, force?: boolean): boolean {
-		return this.#store.pressControl(controlId, pressed, surfaceId, force)
+	pressControl(
+		controlId: string,
+		pressed: boolean,
+		surfaceId: string | undefined,
+		hapticFeedback: ButtonHapticFeedback | null,
+		force?: boolean
+	): boolean {
+		return this.#store.pressControl(controlId, pressed, surfaceId, hapticFeedback, force)
 	}
 
 	rotateControl(controlId: string, delta: number, surfaceId: string | undefined): boolean {

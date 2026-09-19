@@ -2,6 +2,7 @@ import type { SomeEntityModel } from './EntityModel.js'
 
 export interface ActionStepOptions {
 	runWhileHeld: number[]
+	hapticDisabledSets?: ActionSetId[]
 	name?: string
 }
 
