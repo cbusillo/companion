@@ -578,22 +578,22 @@ export class InternalControls extends EventEmitter<InternalModuleFragmentEvents>
 				if (theControlId) {
 					const forcePress = !!action.options.force
 
-					this.#controlsStore.pressControl(theControlId, true, extras.surfaceId, forcePress)
-					this.#controlsStore.pressControl(theControlId, false, extras.surfaceId, forcePress)
+					this.#controlsStore.pressControl(theControlId, true, extras.surfaceId, null, forcePress)
+					this.#controlsStore.pressControl(theControlId, false, extras.surfaceId, null, forcePress)
 				}
 				break
 			}
 			case 'button_press': {
 				const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 				if (theControlId) {
-					this.#controlsStore.pressControl(theControlId, true, extras.surfaceId, !!action.options.force)
+					this.#controlsStore.pressControl(theControlId, true, extras.surfaceId, null, !!action.options.force)
 				}
 				break
 			}
 			case 'button_release': {
 				const { theControlId } = this.#fetchLocationAndControlId(action.options, extras)
 				if (theControlId) {
-					this.#controlsStore.pressControl(theControlId, false, extras.surfaceId, !!action.options.force)
+					this.#controlsStore.pressControl(theControlId, false, extras.surfaceId, null, !!action.options.force)
 				}
 				break
 			}

@@ -2091,6 +2091,11 @@ export class SurfaceController extends EventEmitter<SurfaceControllerEvents> {
 		}
 	}
 
+	/** Explicit feedback targets one connected device, never every member of a group. */
+	triggerDeviceHapticFeedback(surfaceId: string): void {
+		this.#getSurfaceHandlerForId(surfaceId, true)?.triggerHapticFeedback()
+	}
+
 	/**
 	 * Adjust the position offset of a surface by a relative amount
 	 * @param surfaceId

@@ -58,6 +58,7 @@ export interface HostToSurfaceModuleEvents {
 	updateConfig: (msg: UpdateConfigMessage) => void
 
 	setBrightness: (msg: SetBrightnessMessage) => void
+	triggerHapticFeedback: (msg: TriggerHapticFeedbackMessage) => void
 	drawControls: (msg: DrawControlMessage) => void
 	blankSurface: (msg: BlankSurfaceMessage) => void
 	setLocked: (msg: SetLockedMessage) => void
@@ -191,6 +192,12 @@ export interface FirmwareUpdateInfoMessage {
 export interface SetBrightnessMessage {
 	surfaceId: string
 	brightness: number
+}
+
+export interface TriggerHapticFeedbackMessage {
+	surfaceId: string
+	/** Captured from the open result; a reconnect must not receive a previous connection's request. */
+	connectionId: string
 }
 export interface DrawControlMessage {
 	surfaceId: string

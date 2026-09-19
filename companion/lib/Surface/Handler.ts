@@ -21,6 +21,7 @@ import type {
 } from '@companion-app/shared/Model/Surfaces.js'
 import type { VariableValue } from '@companion-app/shared/Model/Variables.js'
 import { rotateXYForPanel, unrotateXYForPanel } from '@companion-app/shared/SurfaceLayout.js'
+import { ButtonHapticFeedback } from '../Controls/ButtonHapticFeedback.js'
 import type { IControlStore } from '../Controls/IControlStore.js'
 import type { DataUserConfig } from '../Data/UserConfig.js'
 import type { GraphicsController } from '../Graphics/Controller.js'
@@ -44,7 +45,10 @@ export class SurfaceHandler extends EventEmitter<SurfaceHandlerEvents> {
 	/**
 	 * Currently pressed buttons, and what they are keeping pressed
 	 */
-	readonly #currentButtonPresses = new Map<string, ControlLocation>()
+	readonly #currentButtonPresses = new Map<
+		string,
+		{ location: ControlLocation; hapticFeedback: ButtonHapticFeedback | null }
+	>()
 
 	/**
 	 * Current page of the surface
@@ -296,6 +300,7 @@ export class SurfaceHandler extends EventEmitter<SurfaceHandlerEvents> {
 		if (this.#isSurfaceLocked === !!locked) return false
 
 		this.#isSurfaceLocked = !!locked
+		if (locked) this.#finishHapticGestures()
 
 		this.#surfaces.emit('surface_locked', this.surfaceId, this.#isSurfaceLocked)
 
@@ -391,6 +396,12 @@ export class SurfaceHandler extends EventEmitter<SurfaceHandlerEvents> {
 		this.setPosition(newXOffset, newYOffset)
 	}
 
+	/** Request explicit feedback on the currently connected surface. */
+	triggerHapticFeedback(): void {
+		const connectionId = this.panel?.info.hapticFeedback?.connectionId
+		if (connectionId) this.panel?.triggerHapticFeedback?.(connectionId)
+	}
+
 	#onDeviceRemove() {
 		if (!this.panel) return
 
@@ -417,16 +428,18 @@ export class SurfaceHandler extends EventEmitter<SurfaceHandlerEvents> {
 	#onDeviceClick(x: number, y: number, pressed: boolean, pageOffset: number = 0): void {
 		if (!this.panel) return
 
+		// The physical release ends its cue lifetime even if the current page has disappeared.
+		const panelCoordinate = `${y}/${x}/${pageOffset}`
 		const pageNumber = this.#pageStore.getPageNumber(this.#currentPageId)
-		if (!pageNumber) return
+		if (!pageNumber) {
+			if (!pressed) this.#currentButtonPresses.get(panelCoordinate)?.hapticFeedback?.finish()
+			return
+		}
 
 		try {
 			if (!this.#isSurfaceLocked) {
 				this.emit('interaction')
 				let location: ControlLocation
-
-				// the key for saving button-press location, which has to refer to the physical button since that doesn't move between press and release
-				const panelCoordinate = `${y}/${x}/${pageOffset}`
 
 				const [x2, y2] = unrotateXYForPanel(x, y, this.panelGridSize, this.#surfaceConfig.config.rotation)
 				const { xOffset, yOffset } = this.#getCurrentOffset()
@@ -445,18 +458,31 @@ export class SurfaceHandler extends EventEmitter<SurfaceHandlerEvents> {
 					row: y2 + yOffset,
 				}
 
+				let hapticFeedback: ButtonHapticFeedback | null = null
 				if (pressed) {
+					this.#currentButtonPresses.get(panelCoordinate)?.hapticFeedback?.finish()
+					const panel = this.panel
+					const connectionId = panel.info.hapticFeedback?.connectionId
+					if (connectionId && panel.triggerHapticFeedback) {
+						hapticFeedback = new ButtonHapticFeedback(() => panel.triggerHapticFeedback?.(connectionId))
+					}
 					// Map the physical key to the internal location, so button-release acts on the correct internal representation
-					this.#currentButtonPresses.set(panelCoordinate, location)
+					this.#currentButtonPresses.set(panelCoordinate, { location, hapticFeedback })
 				} else {
 					// If released, use the same page/offset that was previously pressed, if available
-					location = this.#currentButtonPresses.get(panelCoordinate) ?? location
+					const press = this.#currentButtonPresses.get(panelCoordinate)
+					location = press?.location ?? location
+					hapticFeedback = press?.hapticFeedback ?? null
 					this.#currentButtonPresses.delete(panelCoordinate)
 				}
 
 				const controlId = this.#pageStore.getControlIdAt(location)
-				if (controlId) {
-					this.#controls.pressControl(controlId, pressed, this.surfaceId)
+				try {
+					if (controlId) {
+						this.#controls.pressControl(controlId, pressed, this.surfaceId, hapticFeedback)
+					}
+				} finally {
+					if (!pressed) hapticFeedback?.finish()
 				}
 				this.#logger.debug(
 					`Button ${location.pageNumber}/${location.row}/${location.column} ${pressed ? 'pressed' : 'released'}`
@@ -676,11 +702,16 @@ export class SurfaceHandler extends EventEmitter<SurfaceHandlerEvents> {
 		}
 	}
 
+	#finishHapticGestures(): void {
+		for (const press of this.#currentButtonPresses.values()) press.hapticFeedback?.finish()
+	}
+
 	/**
 	 * Unload this surface handler
 	 * @param purge Purge the configuration
 	 */
 	unload(purge = false): void {
+		this.#finishHapticGestures()
 		this.#logger.error(this.panel.info.description + ' disconnected')
 		this.#logger.silly('unloading for ' + this.panel.info.surfaceId)
 		this.#graphics.off('button_drawn', this.#onButtonDrawn)

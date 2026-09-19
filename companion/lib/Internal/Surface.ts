@@ -294,6 +294,13 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	getActionDefinitions(): Record<string, InternalActionDefinition> {
 		return {
+			haptic_feedback: {
+				label: 'Surface: Haptic feedback',
+				description:
+					'Give brief feedback on a supported surface. The surface Haptic feedback setting must be enabled. Disable automatic feedback for this action group to avoid a second cue.',
+				options: [{ ...CHOICES_SURFACE_ID, label: 'Surface' }],
+				optionsSupportExpressions: true,
+			},
 			set_brightness: {
 				label: 'Surface: Set to brightness',
 				description: undefined,
@@ -514,6 +521,11 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): InternalActionResult {
 		switch (action.definitionId) {
+			case 'haptic_feedback': {
+				const surfaceId = this.#fetchSurfaceId(action.options, extras)
+				if (surfaceId) this.#surfaceController.triggerDeviceHapticFeedback(surfaceId)
+				break
+			}
 			case 'set_brightness': {
 				const surfaceId = this.#fetchSurfaceId(action.options, extras)
 				if (surfaceId) {

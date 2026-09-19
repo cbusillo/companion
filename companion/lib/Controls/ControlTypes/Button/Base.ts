@@ -5,6 +5,7 @@ import type { ButtonOptionsBase, ButtonStatus } from '@companion-app/shared/Mode
 import { EntityModelType } from '@companion-app/shared/Model/EntityModel.js'
 import type { DrawStyleButtonStateProps } from '@companion-app/shared/Model/StyleModel.js'
 import { ControlActionRunner } from '../../ActionRunner.js'
+import type { ButtonHapticFeedback } from '../../ButtonHapticFeedback.js'
 import { ControlBase } from '../../ControlBase.js'
 import type { ControlDependencies } from '../../ControlDependencies.js'
 import type { ControlEntityListChangeProps } from '../../Entities/EntityListPoolBase.js'
@@ -120,6 +121,7 @@ export abstract class ButtonControlRuntimeBase<
 	 * @param skip_up Mark button as released
 	 */
 	abortDelayedActions(skip_up: boolean, exceptSignal: AbortSignal | null): void {
+		this.#finishHapticGestures()
 		if (skip_up) {
 			this.setPushed(false)
 		}
@@ -128,11 +130,16 @@ export abstract class ButtonControlRuntimeBase<
 	}
 
 	abortDelayedActionsSingle(skip_up: boolean, exceptSignal: AbortSignal): void {
+		this.#finishHapticGestures()
 		if (skip_up) {
 			this.setPushed(false)
 		}
 
 		this.actionRunner.abortSingle(exceptSignal)
+	}
+
+	#finishHapticGestures(): void {
+		for (const state of this.#surfaceHoldState.values()) state.hapticFeedback?.finish()
 	}
 
 	/**
@@ -203,6 +210,7 @@ export abstract class ButtonControlRuntimeBase<
 	 * Prepare this control for deletion
 	 */
 	destroy(): void {
+		this.#finishHapticGestures()
 		this.abortRunningHoldTimers(undefined)
 
 		// Buttons always host a drawer, so the base owns tearing it down
@@ -242,7 +250,12 @@ export abstract class ButtonControlRuntimeBase<
 	 * @param surfaceId The surface that initiated this press
 	 * @param force Trigger actions even if already in the state
 	 */
-	pressControl(pressed: boolean, surfaceId: string | undefined, force: boolean): void {
+	pressControl(
+		pressed: boolean,
+		surfaceId: string | undefined,
+		hapticFeedback: ButtonHapticFeedback | null,
+		force: boolean
+	): void {
 		const [thisStepId, nextStepId] = this.entities.validateCurrentStepIdAndGetNextProgression()
 
 		let pressedDuration = 0
@@ -251,12 +264,14 @@ export abstract class ButtonControlRuntimeBase<
 		if (surfaceId) {
 			// Calculate the press duration, or track when the press started
 			if (pressed) {
+				this.#surfaceHoldState.get(surfaceId)?.hapticFeedback?.finish()
 				this.abortRunningHoldTimers(surfaceId)
 
 				holdState = {
 					pressed: Date.now(),
 					step: thisStepId,
 					timers: [],
+					hapticFeedback,
 				}
 				this.#surfaceHoldState.set(surfaceId, holdState)
 			} else {
@@ -320,6 +335,20 @@ export abstract class ButtonControlRuntimeBase<
 						.catch((e) => {
 							this.logger.error(`action execution failed: ${e}`)
 						})
+
+					if (
+						hapticFeedback &&
+						pressedStep &&
+						this.entities.isActionSetHapticFeedbackEnabled(pressedStep, setId) &&
+						actions.some((action) => action.type === EntityModelType.Action && !action.disabled)
+					) {
+						if (typeof setId === 'number') {
+							// Release-selected duration feedback needs a timing decision before this draft ships.
+							if (pressed) hapticFeedback.request('held')
+						} else if (setId === 'down' || setId === 'up') {
+							hapticFeedback.request(setId)
+						}
+					}
 				}
 
 				if (pressed && holdState && holdState.timers.length === 0) {
@@ -453,4 +482,5 @@ interface SurfaceHoldState {
 	pressed: number
 	step: string | null
 	timers: NodeJS.Timeout[]
+	hapticFeedback: ButtonHapticFeedback | null
 }

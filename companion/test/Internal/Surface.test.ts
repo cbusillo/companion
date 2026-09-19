@@ -91,6 +91,37 @@ function makeGroup(overrides: Partial<ClientDevicesListItem>): ClientDevicesList
 }
 
 describe('InternalSurface', () => {
+	describe('executeAction: haptic feedback', () => {
+		test('self selects the invoking surface and an explicit selection uses that device', () => {
+			const { surface, surfaceController } = createSurface()
+			surface.executeAction(
+				makeExecAction('haptic_feedback', { surfaceId: 'self' }),
+				makeExtras({ surfaceId: 'deck-7' })
+			)
+			expect(surfaceController.triggerDeviceHapticFeedback).toHaveBeenLastCalledWith('deck-7')
+			surface.executeAction(makeExecAction('haptic_feedback', { surfaceId: 'deck-8' }), fakeExtras)
+			expect(surfaceController.triggerDeviceHapticFeedback).toHaveBeenLastCalledWith('deck-8')
+			expect(surfaceController.getGroupIdFromDeviceId).not.toHaveBeenCalled()
+		})
+
+		test('missing self and empty targets do nothing', () => {
+			const { surface, surfaceController } = createSurface()
+			surface.executeAction(
+				makeExecAction('haptic_feedback', { surfaceId: 'self' }),
+				makeExtras({ surfaceId: undefined })
+			)
+			surface.executeAction(makeExecAction('haptic_feedback', { surfaceId: '' }), fakeExtras)
+			expect(surfaceController.triggerDeviceHapticFeedback).not.toHaveBeenCalled()
+		})
+
+		test('offers individual surfaces with self as the default', () => {
+			const { surface } = createSurface()
+			expect(surface.getActionDefinitions().haptic_feedback.options).toEqual([
+				expect.objectContaining({ id: 'surfaceId', listMode: 'surfaces', default: 'self', includeSelf: true }),
+			])
+		})
+	})
+
 	describe('executeAction: brightness', () => {
 		test('set_brightness sets the device brightness', () => {
 			const { surface, surfaceController } = createSurface()
@@ -585,6 +616,7 @@ describe('InternalSurface', () => {
 
 			expect(Object.keys(surface.getActionDefinitions()).sort()).toEqual(
 				[
+					'haptic_feedback',
 					'set_brightness',
 					'adjust_brightness',
 					'set_page',

@@ -374,8 +374,6 @@ export abstract class ButtonEntityListPoolBase extends ControlEntityListPoolBase
 		existingActions: ActionSetsModel | null,
 		existingOptions: ActionStepOptions | null
 	): ControlEntityListActionStep {
-		const options = existingOptions || structuredClone(ButtonEntityListPoolBase.DefaultStepOptions)
-
 		const downList = this.createActionEntityList(existingActions?.down || [], false, !!existingActions)
 		const upList = this.createActionEntityList(existingActions?.up || [], false, !!existingActions)
 
@@ -401,10 +399,38 @@ export abstract class ButtonEntityListPoolBase extends ControlEntityListPoolBase
 			}
 		}
 
+		const options = existingOptions
+			? structuredClone(existingOptions)
+			: structuredClone(ButtonEntityListPoolBase.DefaultStepOptions)
+		const rawHapticDisabledSets: unknown = options.hapticDisabledSets
+		if (Array.isArray(rawHapticDisabledSets)) {
+			const hapticDisabledSets = rawHapticDisabledSets.filter(
+				(setId, index): setId is ActionSetId =>
+					(setId === 'down' ||
+						setId === 'up' ||
+						(typeof setId === 'number' && Number.isFinite(setId) && sets.has(setId))) &&
+					rawHapticDisabledSets.indexOf(setId) === index
+			)
+			if (hapticDisabledSets.length > 0) options.hapticDisabledSets = hapticDisabledSets
+			else delete options.hapticDisabledSets
+		} else {
+			delete options.hapticDisabledSets
+		}
+
 		return {
 			sets: sets,
 			options: options,
 		}
+	}
+
+	isActionSetHapticFeedbackEnabled(stepId: string, setId: ActionSetId): boolean {
+		const step = this.steps.get(stepId)
+		if (!step) return false
+
+		if (setId !== 'down' && setId !== 'up' && (typeof setId !== 'number' || !Number.isFinite(setId))) return false
+		if (!step.sets.has(setId)) return false
+
+		return !step.options.hapticDisabledSets?.includes(setId)
 	}
 
 	/**

@@ -171,6 +171,7 @@ export class SurfacePluginPanel extends EventEmitter<SurfacePanelEvents> impleme
 	readonly surfaceLayout: SurfaceSchemaLayoutDefinition
 
 	#config: Record<string, any>
+	#closed = false
 
 	constructor(
 		ipcWrapper: IpcWrapper<HostToSurfaceModuleEvents, SurfaceModuleToHostEvents>,
@@ -284,12 +285,25 @@ export class SurfacePluginPanel extends EventEmitter<SurfacePanelEvents> impleme
 			canChangePage: !!surfaceInfo.canChangePage,
 			location: surfaceInfo.location ?? null,
 			isRemote: surfaceInfo.isRemote,
+			hapticFeedback: surfaceInfo.hapticFeedback,
 			// hasFirmwareUpdates?: SurfaceFirmwareUpdateInfo
 		}
 
 		// Send all variables immediately
 		for (const [name, outputVariable] of Object.entries(this.#outputVariables)) {
 			this.#triggerOutputVariable(name, outputVariable)
+		}
+	}
+
+	triggerHapticFeedback(connectionId: string): void {
+		if (this.#closed || this.info.hapticFeedback?.connectionId !== connectionId) return
+
+		try {
+			this.#ipcWrapper
+				.sendWithCb('triggerHapticFeedback', { surfaceId: this.info.surfaceId, connectionId })
+				.catch((e) => this.#logger.debug(`Haptic feedback failed: ${stringifyError(e)}`))
+		} catch (e) {
+			this.#logger.debug(`Haptic feedback failed: ${stringifyError(e)}`)
 		}
 	}
 
@@ -395,6 +409,7 @@ export class SurfacePluginPanel extends EventEmitter<SurfacePanelEvents> impleme
 	}
 
 	quit(): void {
+		this.#closed = true
 		this.#ipcWrapper.sendWithCb('closeSurface', { surfaceId: this.#surfaceInfo.surfaceId }).catch((e) => {
 			this.#logger.debug(`Close surface failed: ${e}`)
 		})

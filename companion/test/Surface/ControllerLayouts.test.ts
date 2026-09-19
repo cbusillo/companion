@@ -9,8 +9,16 @@ import type {
 } from '@companion-app/shared/Model/Surfaces.js'
 import { createTables } from '../../lib/Data/Schema/v1.js'
 import { DataStoreBase } from '../../lib/Data/StoreBase.js'
+import type { IpcWrapper } from '../../lib/Instance/Common/IpcWrapper.js'
+import type {
+	HostOpenDeviceResult,
+	HostToSurfaceModuleEvents,
+	SurfaceModuleToHostEvents,
+} from '../../lib/Instance/Surface/IpcTypes.js'
 import { SurfaceController } from '../../lib/Surface/Controller.js'
 import type { SatelliteDeviceInfo } from '../../lib/Surface/IP/Satellite.js'
+import { SurfacePluginPanel } from '../../lib/Surface/PluginPanel.js'
+import { mangleReferenceSurfaceId } from '../../lib/Surface/ReferenceSurfaceId.js'
 import type { SurfaceHandlerDependencies } from '../../lib/Surface/Types.js'
 import type { TrpcContext } from '../../lib/UI/TRPC.js'
 import { createMockTrpcContext } from '../Util.js'
@@ -284,5 +292,76 @@ describe('SurfaceController layout subscriptions', () => {
 		expect(Object.keys(await sub.next())).toEqual(['offline1', 'offline2'])
 
 		await sub.cleanup()
+	})
+})
+
+function addPluginPanel(controller: SurfaceController, surfaceId: string, connectionId: string) {
+	const ipc = mockDeep<IpcWrapper<HostToSurfaceModuleEvents, SurfaceModuleToHostEvents>>()
+	ipc.sendWithCb.mockResolvedValue(undefined)
+	const info: HostOpenDeviceResult = {
+		surfaceId,
+		description: 'Test haptic surface',
+		supportsBrightness: false,
+		hapticFeedback: { connectionId },
+		surfaceLayout: neoLayout,
+		transferVariables: null,
+		location: null,
+		isRemote: false,
+		configFields: null,
+	}
+	const panel = new SurfacePluginPanel(ipc, 'test-instance', info, vi.fn())
+	vi.spyOn(panel, 'draw').mockImplementation(() => {})
+	controller.addPluginPanel('test-module', panel)
+	return { ipc, panel }
+}
+
+describe('SurfaceController haptic feedback routing', () => {
+	let controller: SurfaceController
+
+	beforeEach(() => {
+		;({ controller } = createController())
+	})
+
+	test('routes one request to the connected panel and strips a reference surface id', () => {
+		const { ipc } = addPluginPanel(controller, 'test:deck', 'open-1')
+
+		controller.triggerDeviceHapticFeedback('test:deck')
+		expect(ipc.sendWithCb).toHaveBeenCalledWith('triggerHapticFeedback', {
+			surfaceId: 'test:deck',
+			connectionId: 'open-1',
+		})
+
+		ipc.sendWithCb.mockClear()
+		controller.triggerDeviceHapticFeedback(mangleReferenceSurfaceId('test:deck', 'bank:1-0-0'))
+		expect(ipc.sendWithCb).toHaveBeenCalledWith('triggerHapticFeedback', {
+			surfaceId: 'test:deck',
+			connectionId: 'open-1',
+		})
+	})
+
+	test('does not throw or broadcast a request for an unknown or group id', async () => {
+		const first = addPluginPanel(controller, 'test:first', 'open-1')
+		const second = addPluginPanel(controller, 'test:second', 'open-2')
+		const caller = t.createCallerFactory(controller.createTrpcRouter())(testCtx)
+		const groupId = await caller.groupAdd({ baseId: 'haptics', name: 'Haptics' })
+		await caller.surfaceSetGroup({ surfaceId: 'test:first', groupId })
+		await caller.surfaceSetGroup({ surfaceId: 'test:second', groupId })
+
+		expect(() => controller.triggerDeviceHapticFeedback('missing')).not.toThrow()
+		expect(() => controller.triggerDeviceHapticFeedback(groupId)).not.toThrow()
+		expect(first.ipc.sendWithCb.mock.calls.filter(([event]) => event === 'triggerHapticFeedback')).toHaveLength(0)
+		expect(second.ipc.sendWithCb.mock.calls.filter(([event]) => event === 'triggerHapticFeedback')).toHaveLength(0)
+	})
+
+	test('does not expose the haptic connection generation in the client device list', () => {
+		addPluginPanel(controller, 'test:deck', 'open-1')
+
+		const surface = controller
+			.getDevicesList()
+			.flatMap((group) => group.surfaces)
+			.find((item) => item.id === 'test:deck')
+		expect(surface).toBeTruthy()
+		expect(surface).not.toHaveProperty('hapticFeedback')
+		expect(surface).not.toHaveProperty('connectionId')
 	})
 })
