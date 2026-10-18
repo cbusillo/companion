@@ -21,10 +21,10 @@ function makePanel(connectionId: string | null) {
 		surfaceId: 'test:deck',
 		description: 'Test deck',
 		supportsBrightness: false,
-		hapticFeedback: connectionId ? { connectionId } : undefined,
+		controlEvents: connectionId ? { connectionId } : undefined,
 		surfaceLayout: {
 			stylePresets: { default: { bitmap: { w: 1, h: 1 } } },
-			controls: { key: { row: 0, column: 0 } },
+			controls: { key: { row: 0, column: 0 }, other: { row: 0, column: 1 } },
 		},
 		transferVariables: null,
 		location: null,
@@ -55,29 +55,33 @@ function makeHandler(connectionId: string | null) {
 	return { panel, ipc, handler, deps }
 }
 
-describe('haptic surface routing', () => {
+function controlEventCalls(ipc: ReturnType<typeof makePanel>['ipc']) {
+	return ipc.sendWithCb.mock.calls.filter(([type]) => type === 'controlEvent').map(([, msg]) => msg)
+}
+
+describe('surface control event routing', () => {
 	beforeEach(() => vi.useFakeTimers())
 	afterEach(() => {
 		vi.clearAllTimers()
 		vi.useRealTimers()
 	})
 
-	test('panel sends the captured generation and drops mismatched, closed and legacy requests', () => {
+	test('panel sends the control at that position with its own connection id, and stops once closed', () => {
 		const { panel, ipc } = makePanel('open1')
-		panel.triggerHapticFeedback('open1')
-		expect(ipc.sendWithCb).toHaveBeenCalledWith('triggerHapticFeedback', {
-			surfaceId: 'test:deck',
-			connectionId: 'open1',
-		})
-		panel.triggerHapticFeedback('old-open')
-		expect(ipc.sendWithCb).toHaveBeenCalledTimes(1)
+		expect(panel.info.supportsControlEvents).toBe(true)
+		panel.controlEvent(1, 0, 'press')
+		expect(controlEventCalls(ipc)).toEqual([
+			{ surfaceId: 'test:deck', connectionId: 'open1', controlId: 'other', event: 'press' },
+		])
+		panel.controlEvent(5, 3, 'press')
+		expect(controlEventCalls(ipc)).toHaveLength(1)
 		panel.quit()
-		ipc.sendWithCb.mockClear()
-		panel.triggerHapticFeedback('open1')
-		expect(ipc.sendWithCb).not.toHaveBeenCalled()
+		panel.controlEvent(0, 0, 'hold')
+		expect(controlEventCalls(ipc)).toHaveLength(1)
 		const legacy = makePanel(null)
-		legacy.panel.triggerHapticFeedback('open1')
-		expect(legacy.ipc.sendWithCb).not.toHaveBeenCalled()
+		expect(legacy.panel.info.supportsControlEvents).toBe(false)
+		legacy.panel.controlEvent(0, 0, 'press')
+		expect(controlEventCalls(legacy.ipc)).toHaveLength(0)
 	})
 
 	test('panel contains synchronous and asynchronous IPC failures', async () => {
@@ -88,30 +92,40 @@ describe('haptic surface routing', () => {
 		ipc.sendWithCb.mockImplementationOnce(() => {
 			throw new Error('closed')
 		})
-		expect(() => panel.triggerHapticFeedback('open1')).not.toThrow()
+		expect(() => panel.controlEvent(0, 0, 'press')).not.toThrow()
 		ipc.sendWithCb.mockRejectedValueOnce(new Error('disconnected'))
-		panel.triggerHapticFeedback('open1')
+		panel.controlEvent(0, 0, 'press')
 		await vi.waitFor(() => expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('disconnected')))
 		expect(logger.debug).toHaveBeenCalledTimes(2)
 	})
 
-	test('release reuses the physical context and original location after a page and offset change', () => {
+	test('events go to the pressed control, and release reuses the press after a page and offset change', () => {
 		const { panel, handler, deps, ipc } = makeHandler('open1')
-		panel.inputPress('key', true)
+		panel.inputPress('other', true)
 		const context = deps.controls.pressControl.mock.lastCall?.[3]
 		expect(context).toBeTruthy()
 		context?.request('down')
 		handler.storeNewDevicePage('page2', true)
 		deps.pageStore.getPageNumber.mockReturnValue(2)
 		handler.setPosition(3, 2)
-		panel.inputPress('key', false)
+		panel.inputPress('other', false)
 		expect(deps.controls.pressControl.mock.lastCall?.[3]).toBe(context)
-		expect(deps.pageStore.getControlIdAt).toHaveBeenLastCalledWith({ pageNumber: 1, column: 0, row: 0 })
-		context?.request('held')
-		expect(ipc.sendWithCb.mock.calls.filter(([type]) => type === 'triggerHapticFeedback')).toHaveLength(1)
+		expect(deps.pageStore.getControlIdAt).toHaveBeenLastCalledWith({ pageNumber: 1, column: 1, row: 0 })
+		expect(controlEventCalls(ipc)).toEqual([
+			{ surfaceId: 'test:deck', connectionId: 'open1', controlId: 'other', event: 'press' },
+		])
 	})
 
-	test.each(['replace', 'lock', 'unload'] as const)('%s invalidates a pending gesture', (reason) => {
+	test('a run-while-held group sends hold while the press is active', () => {
+		const { panel, deps, ipc } = makeHandler('open1')
+		panel.inputPress('key', true)
+		deps.controls.pressControl.mock.lastCall?.[3]?.request('held')
+		expect(controlEventCalls(ipc)).toEqual([
+			{ surfaceId: 'test:deck', connectionId: 'open1', controlId: 'key', event: 'hold' },
+		])
+	})
+
+	test.each(['replace', 'lock', 'unload'] as const)('%s invalidates a pending press', (reason) => {
 		const { panel, handler, deps, ipc } = makeHandler('open1')
 		panel.inputPress('key', true)
 		const context = deps.controls.pressControl.mock.lastCall?.[3]
@@ -120,20 +134,20 @@ describe('haptic surface routing', () => {
 		else if (reason === 'lock') handler.setLocked(true, true)
 		else handler.unload()
 		context?.request('held')
-		expect(ipc.sendWithCb.mock.calls.filter(([type]) => type === 'triggerHapticFeedback')).toHaveLength(0)
+		expect(controlEventCalls(ipc)).toHaveLength(0)
 	})
 
-	test('release still invalidates the cue when the current page no longer exists', () => {
+	test('release still invalidates the press when the current page no longer exists', () => {
 		const { panel, deps, ipc } = makeHandler('open1')
 		panel.inputPress('key', true)
 		const context = deps.controls.pressControl.mock.lastCall?.[3]
 		deps.pageStore.getPageNumber.mockReturnValue(null)
 		panel.inputPress('key', false)
 		context?.request('held')
-		expect(ipc.sendWithCb.mock.calls.filter(([type]) => type === 'triggerHapticFeedback')).toHaveLength(0)
+		expect(controlEventCalls(ipc)).toHaveLength(0)
 	})
 
-	test('plain input, rotary, PIN and legacy input never directly request output', () => {
+	test('plain input, rotary, PIN and legacy input never directly send events', () => {
 		const { panel, handler, deps, ipc } = makeHandler('open1')
 		panel.inputPress('key', true)
 		panel.inputRotate('key', 1)
@@ -141,18 +155,30 @@ describe('haptic surface routing', () => {
 		panel.inputPress('key', true)
 		panel.inputPincode(1)
 		expect(deps.controls.pressControl).toHaveBeenCalledTimes(1)
-		expect(ipc.sendWithCb.mock.calls.filter(([type]) => type === 'triggerHapticFeedback')).toHaveLength(0)
+		expect(controlEventCalls(ipc)).toHaveLength(0)
 		const legacy = makeHandler(null)
 		legacy.panel.inputPress('key', true)
 		expect(legacy.deps.controls.pressControl.mock.lastCall?.[3]).toBeNull()
 	})
 
-	test('explicit requests use the current panel generation', () => {
-		const { handler, ipc } = makeHandler('open2')
-		handler.triggerHapticFeedback()
-		expect(ipc.sendWithCb).toHaveBeenCalledWith('triggerHapticFeedback', {
-			surfaceId: 'test:deck',
-			connectionId: 'open2',
-		})
+	test('explicit cues go to the control showing that location, only while it is shown', () => {
+		const { handler, deps, ipc } = makeHandler('open2')
+		handler.sendControlEventAt({ pageNumber: 1, row: 0, column: 1 }, 'hold')
+		expect(controlEventCalls(ipc)).toEqual([
+			{ surfaceId: 'test:deck', connectionId: 'open2', controlId: 'other', event: 'hold' },
+		])
+
+		handler.sendControlEventAt({ pageNumber: 2, row: 0, column: 1 }, 'press')
+		handler.sendControlEventAt({ pageNumber: 1, row: 3, column: 7 }, 'press')
+		expect(controlEventCalls(ipc)).toHaveLength(1)
+
+		handler.setPosition(1, 0)
+		handler.sendControlEventAt({ pageNumber: 1, row: 0, column: 1 }, 'press')
+		expect(controlEventCalls(ipc).at(-1)).toMatchObject({ controlId: 'key' })
+
+		handler.setLocked(true, true)
+		handler.sendControlEventAt({ pageNumber: 1, row: 0, column: 1 }, 'press')
+		expect(controlEventCalls(ipc)).toHaveLength(2)
+		expect(deps.controls.pressControl).not.toHaveBeenCalled()
 	})
 })

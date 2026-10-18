@@ -16,7 +16,7 @@ import type { IPageStore } from '../Page/Store.js'
 import type { SurfaceController } from '../Surface/Controller.js'
 import type { VariablesValues } from '../Variables/Values.js'
 import type { ActionRunner } from './ActionRunner.js'
-import type { ButtonHapticFeedback } from './ButtonHapticFeedback.js'
+import type { ButtonPressEvents } from './ButtonPressEvents.js'
 import type { ControlEntityInstance } from './Entities/EntityInstance.js'
 import type { ExpressionVariableNameMap } from './ExpressionVariableNameMap.js'
 import type { SomeControl } from './IControlFragments.js'
@@ -32,7 +32,7 @@ export interface ControlsAccessor {
 		controlId: string,
 		pressed: boolean,
 		surfaceId: string | undefined,
-		hapticFeedback: ButtonHapticFeedback | null,
+		pressEvents: ButtonPressEvents | null,
 		force?: boolean
 	): boolean
 	rotateControl(controlId: string, delta: number, surfaceId: string | undefined): boolean

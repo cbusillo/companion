@@ -5,7 +5,7 @@ import type { ButtonOptionsBase, ButtonStatus } from '@companion-app/shared/Mode
 import { EntityModelType } from '@companion-app/shared/Model/EntityModel.js'
 import type { DrawStyleButtonStateProps } from '@companion-app/shared/Model/StyleModel.js'
 import { ControlActionRunner } from '../../ActionRunner.js'
-import type { ButtonHapticFeedback } from '../../ButtonHapticFeedback.js'
+import type { ButtonPressEvents } from '../../ButtonPressEvents.js'
 import { ControlBase } from '../../ControlBase.js'
 import type { ControlDependencies } from '../../ControlDependencies.js'
 import type { ControlEntityListChangeProps } from '../../Entities/EntityListPoolBase.js'
@@ -121,7 +121,7 @@ export abstract class ButtonControlRuntimeBase<
 	 * @param skip_up Mark button as released
 	 */
 	abortDelayedActions(skip_up: boolean, exceptSignal: AbortSignal | null): void {
-		this.#finishHapticGestures()
+		this.#finishPressEvents()
 		if (skip_up) {
 			this.setPushed(false)
 		}
@@ -130,7 +130,7 @@ export abstract class ButtonControlRuntimeBase<
 	}
 
 	abortDelayedActionsSingle(skip_up: boolean, exceptSignal: AbortSignal): void {
-		this.#finishHapticGestures()
+		this.#finishPressEvents()
 		if (skip_up) {
 			this.setPushed(false)
 		}
@@ -138,8 +138,8 @@ export abstract class ButtonControlRuntimeBase<
 		this.actionRunner.abortSingle(exceptSignal)
 	}
 
-	#finishHapticGestures(): void {
-		for (const state of this.#surfaceHoldState.values()) state.hapticFeedback?.finish()
+	#finishPressEvents(): void {
+		for (const state of this.#surfaceHoldState.values()) state.pressEvents?.finish()
 	}
 
 	/**
@@ -210,7 +210,7 @@ export abstract class ButtonControlRuntimeBase<
 	 * Prepare this control for deletion
 	 */
 	destroy(): void {
-		this.#finishHapticGestures()
+		this.#finishPressEvents()
 		this.abortRunningHoldTimers(undefined)
 
 		// Buttons always host a drawer, so the base owns tearing it down
@@ -248,12 +248,13 @@ export abstract class ButtonControlRuntimeBase<
 	 * Execute a press of this control
 	 * @param pressed Whether the control is pressed
 	 * @param surfaceId The surface that initiated this press
+	 * @param pressEvents Control events for a physical press, or null for any other press
 	 * @param force Trigger actions even if already in the state
 	 */
 	pressControl(
 		pressed: boolean,
 		surfaceId: string | undefined,
-		hapticFeedback: ButtonHapticFeedback | null,
+		pressEvents: ButtonPressEvents | null,
 		force: boolean
 	): void {
 		const [thisStepId, nextStepId] = this.entities.validateCurrentStepIdAndGetNextProgression()
@@ -264,14 +265,14 @@ export abstract class ButtonControlRuntimeBase<
 		if (surfaceId) {
 			// Calculate the press duration, or track when the press started
 			if (pressed) {
-				this.#surfaceHoldState.get(surfaceId)?.hapticFeedback?.finish()
+				this.#surfaceHoldState.get(surfaceId)?.pressEvents?.finish()
 				this.abortRunningHoldTimers(surfaceId)
 
 				holdState = {
 					pressed: Date.now(),
 					step: thisStepId,
 					timers: [],
-					hapticFeedback,
+					pressEvents,
 				}
 				this.#surfaceHoldState.set(surfaceId, holdState)
 			} else {
@@ -337,16 +338,16 @@ export abstract class ButtonControlRuntimeBase<
 						})
 
 					if (
-						hapticFeedback &&
+						pressEvents &&
 						pressedStep &&
-						this.entities.isActionSetHapticFeedbackEnabled(pressedStep, setId) &&
+						this.entities.isActionSetControlEventsEnabled(pressedStep, setId) &&
 						actions.some((action) => action.type === EntityModelType.Action && !action.disabled)
 					) {
 						if (typeof setId === 'number') {
 							// Release-selected duration feedback needs a timing decision before this draft ships.
-							if (pressed) hapticFeedback.request('held')
+							if (pressed) pressEvents.request('held')
 						} else if (setId === 'down' || setId === 'up') {
-							hapticFeedback.request(setId)
+							pressEvents.request(setId)
 						}
 					}
 				}
@@ -482,5 +483,5 @@ interface SurfaceHoldState {
 	pressed: number
 	step: string | null
 	timers: NodeJS.Timeout[]
-	hapticFeedback: ButtonHapticFeedback | null
+	pressEvents: ButtonPressEvents | null
 }

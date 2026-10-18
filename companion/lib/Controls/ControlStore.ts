@@ -9,7 +9,7 @@ import type {
 	ExpressionParserOptions,
 	VariablesAndExpressionParser,
 } from '../Variables/VariablesAndExpressionParser.js'
-import type { ButtonHapticFeedback } from './ButtonHapticFeedback.js'
+import type { ButtonPressEvents } from './ButtonPressEvents.js'
 import type { ControlEntityInstance } from './Entities/EntityInstance.js'
 import type { NewFeedbackValue } from './Entities/Types.js'
 import type { SomeControl } from './IControlFragments.js'
@@ -97,20 +97,21 @@ export class ControlStore implements IControlStore {
 	 * @param controlId Id of the control
 	 * @param pressed Whether the control is pressed
 	 * @param surfaceId The surface that initiated this press
+	 * @param pressEvents Control events for a physical press, or null for any other press
 	 * @param force Trigger actions even if already in the state
 	 */
 	pressControl(
 		controlId: string,
 		pressed: boolean,
 		surfaceId: string | undefined,
-		hapticFeedback: ButtonHapticFeedback | null,
+		pressEvents: ButtonPressEvents | null,
 		force?: boolean
 	): boolean {
 		const control = this.getControl(controlId)
 		if (control) {
 			this.triggerEvents.emit('control_press', controlId, pressed, surfaceId)
 
-			control.pressControl(pressed, surfaceId, hapticFeedback, force)
+			control.pressControl(pressed, surfaceId, pressEvents, force)
 
 			return true
 		}

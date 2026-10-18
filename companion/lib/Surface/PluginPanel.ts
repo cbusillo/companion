@@ -7,6 +7,7 @@ import type { CompanionSurfaceConfigField, GridSize } from '@companion-app/share
 import type { VariableValue } from '@companion-app/shared/Model/Variables.js'
 import { stringifyError } from '@companion-app/shared/Stringify.js'
 import { VARIABLE_UNKNOWN_VALUE } from '@companion-app/shared/Variables.js'
+import type { SurfaceControlEvent } from '@companion-surface/base'
 import type {
 	SurfaceRotation,
 	SurfaceSchemaControlStylePreset,
@@ -289,7 +290,7 @@ export class SurfacePluginPanel extends EventEmitter<SurfacePanelEvents> impleme
 			canChangePage: !!surfaceInfo.canChangePage,
 			location: surfaceInfo.location ?? null,
 			isRemote: surfaceInfo.isRemote,
-			hapticFeedback: surfaceInfo.hapticFeedback,
+			supportsControlEvents: !!surfaceInfo.controlEvents,
 			// hasFirmwareUpdates?: SurfaceFirmwareUpdateInfo
 		}
 
@@ -299,15 +300,27 @@ export class SurfacePluginPanel extends EventEmitter<SurfacePanelEvents> impleme
 		}
 	}
 
-	triggerHapticFeedback(connectionId: string): void {
-		if (this.#closed || this.info.hapticFeedback?.connectionId !== connectionId) return
+	controlEvent(x: number, y: number, event: SurfaceControlEvent): void {
+		// The connection id is captured from this open, so the module drops it if the surface has since reopened
+		const connectionId = this.#surfaceInfo.controlEvents?.connectionId
+		if (this.#closed || !connectionId) return
 
-		try {
-			this.#ipcWrapper
-				.sendWithCb('triggerHapticFeedback', { surfaceId: this.info.surfaceId, connectionId })
-				.catch((e) => this.#logger.debug(`Haptic feedback failed: ${stringifyError(e)}`))
-		} catch (e) {
-			this.#logger.debug(`Haptic feedback failed: ${stringifyError(e)}`)
+		const definitions = this.#controlDefinitions.get(formatSurfaceXy(x, y))
+		if (!definitions) return
+
+		for (const definition of definitions) {
+			try {
+				this.#ipcWrapper
+					.sendWithCb('controlEvent', {
+						surfaceId: this.#surfaceInfo.surfaceId,
+						connectionId,
+						controlId: definition.id,
+						event,
+					})
+					.catch((e) => this.#logger.debug(`Control event failed: ${stringifyError(e)}`))
+			} catch (e) {
+				this.#logger.debug(`Control event failed: ${stringifyError(e)}`)
+			}
 		}
 	}
 

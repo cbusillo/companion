@@ -2,11 +2,11 @@ import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { LayeredButtonModel } from '@companion-app/shared/Model/ButtonModel.js'
 import { EntityModelType, type ActionEntityModel } from '@companion-app/shared/Model/EntityModel.js'
-import { ButtonHapticFeedback } from '../../../../lib/Controls/ButtonHapticFeedback.js'
+import { ButtonPressEvents } from '../../../../lib/Controls/ButtonPressEvents.js'
 import type { ControlDependencies } from '../../../../lib/Controls/ControlDependencies.js'
 import { ControlButtonLayered } from '../../../../lib/Controls/ControlTypes/Button/Layered.js'
 
-const CONTROL_ID = 'bank:haptic-test'
+const CONTROL_ID = 'bank:press-events-test'
 
 function action(id: string, disabled = false): ActionEntityModel {
 	return {
@@ -25,7 +25,7 @@ function storage(options: {
 	up?: ActionEntityModel[]
 	durations?: Record<number, ActionEntityModel[]>
 	runWhileHeld?: number[]
-	hapticDisabledSets?: Array<'down' | 'up' | number>
+	controlEventsDisabledSets?: Array<'down' | 'up' | number>
 }): LayeredButtonModel {
 	return {
 		type: 'button-layered',
@@ -37,7 +37,7 @@ function storage(options: {
 			'0': {
 				options: {
 					runWhileHeld: options.runWhileHeld ?? [],
-					hapticDisabledSets: options.hapticDisabledSets,
+					controlEventsDisabledSets: options.controlEventsDisabledSets,
 				},
 				action_sets: {
 					down: options.down ?? [],
@@ -116,12 +116,12 @@ afterEach(() => {
 	vi.useRealTimers()
 })
 
-describe('button automatic haptic dispatch', () => {
-	test('requests feedback for an eligible enabled top-level action', () => {
+describe('button automatic press event dispatch', () => {
+	test('sends an event for an eligible enabled top-level action', () => {
 		const { control, runMultipleActions } = createControl(storage({ down: [action('down1')] }))
 		const send = vi.fn()
 
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)
 
 		expect(runMultipleActions).toHaveBeenCalledTimes(1)
 		expect(send).toHaveBeenCalledTimes(1)
@@ -130,18 +130,18 @@ describe('button automatic haptic dispatch', () => {
 
 	test.each([
 		['all actions disabled', storage({ down: [action('down1', true)] })],
-		['group preference disabled', storage({ down: [action('down1')], hapticDisabledSets: ['down'] })],
-	] as const)('does not request feedback when %s', (_name, model) => {
+		['group preference disabled', storage({ down: [action('down1')], controlEventsDisabledSets: ['down'] })],
+	] as const)('does not send an event when %s', (_name, model) => {
 		const { control } = createControl(model)
 		const send = vi.fn()
 
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)
 
 		expect(send).not.toHaveBeenCalled()
 		control.destroy()
 	})
 
-	test('does not request feedback for a synthetic press with no physical context', () => {
+	test('does not send an event for a synthetic press with no physical context', () => {
 		const { control, runMultipleActions } = createControl(storage({ down: [action('down1')] }))
 
 		control.pressControl(true, 'synthetic-surface', null, false)
@@ -159,7 +159,7 @@ describe('button automatic haptic dispatch', () => {
 		const { control } = createControl(storage({ down: [action('down1')] }), runMultipleActions)
 		const send = vi.fn()
 
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)
 
 		expect(send).toHaveBeenCalledTimes(1)
 		resolveAction()
@@ -167,7 +167,7 @@ describe('button automatic haptic dispatch', () => {
 		control.destroy()
 	})
 
-	test('submits distinct held-stage cues after the down cue', () => {
+	test('sends a hold event for each distinct held stage after the press event', () => {
 		const { control } = createControl(
 			storage({
 				down: [action('down1')],
@@ -177,24 +177,24 @@ describe('button automatic haptic dispatch', () => {
 		)
 		const send = vi.fn()
 
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)
 		expect(send).toHaveBeenCalledTimes(1)
 
 		vi.advanceTimersByTime(100)
 		expect(send).toHaveBeenCalledTimes(2)
 		vi.advanceTimersByTime(100)
-		expect(send).toHaveBeenCalledTimes(3)
+		expect(send.mock.calls).toEqual([['press'], ['hold'], ['hold']])
 		control.destroy()
 	})
 
 	test('a replacement press invalidates the previous gesture context', () => {
 		const { control } = createControl(storage({ down: [action('down1')] }))
 		const firstSend = vi.fn()
-		const firstFeedback = new ButtonHapticFeedback(firstSend)
+		const firstFeedback = new ButtonPressEvents(firstSend)
 		const secondSend = vi.fn()
 
 		control.pressControl(true, 'surface1', firstFeedback, false)
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(secondSend), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(secondSend), false)
 		firstFeedback.request('held')
 
 		expect(firstSend).toHaveBeenCalledTimes(1)
@@ -212,7 +212,7 @@ describe('button automatic haptic dispatch', () => {
 		)
 		const send = vi.fn()
 
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)
 		control.abortDelayedActions(false, null)
 		vi.advanceTimersByTime(100)
 
@@ -224,7 +224,7 @@ describe('button automatic haptic dispatch', () => {
 	test('destroy invalidates the active gesture context', () => {
 		const { control } = createControl(storage({ down: [action('down1')] }))
 		const send = vi.fn()
-		const feedback = new ButtonHapticFeedback(send)
+		const feedback = new ButtonPressEvents(send)
 
 		control.pressControl(true, 'surface1', feedback, false)
 		control.destroy()
@@ -236,7 +236,7 @@ describe('button automatic haptic dispatch', () => {
 	test('allows an eligible up cue when down had no eligible action', () => {
 		const { control } = createControl(storage({ up: [action('up1')] }))
 		const send = vi.fn()
-		const feedback = new ButtonHapticFeedback(send)
+		const feedback = new ButtonPressEvents(send)
 
 		control.pressControl(true, 'surface1', feedback, false)
 		control.pressControl(false, 'surface1', feedback, false)
@@ -252,9 +252,7 @@ describe('button automatic haptic dispatch', () => {
 		})
 		const send = vi.fn()
 
-		expect(() => control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)).toThrow(
-			'dispatch failed'
-		)
+		expect(() => control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)).toThrow('dispatch failed')
 		expect(send).not.toHaveBeenCalled()
 		control.destroy()
 	})
@@ -263,7 +261,7 @@ describe('button automatic haptic dispatch', () => {
 		const { control, runMultipleActions } = createControl(storage({ down: [action('down1')] }))
 		runMultipleActions.mockImplementation(async () => control.abortDelayedActions(false, null))
 		const send = vi.fn()
-		control.pressControl(true, 'surface1', new ButtonHapticFeedback(send), false)
+		control.pressControl(true, 'surface1', new ButtonPressEvents(send), false)
 		expect(runMultipleActions).toHaveBeenCalledTimes(1)
 		expect(send).not.toHaveBeenCalled()
 		control.destroy()
@@ -272,7 +270,7 @@ describe('button automatic haptic dispatch', () => {
 	test('a synthetic replacement cannot reuse an earlier physical gesture for its release cue', () => {
 		const { control } = createControl(storage({ up: [action('up1')] }))
 		const send = vi.fn()
-		const feedback = new ButtonHapticFeedback(send)
+		const feedback = new ButtonPressEvents(send)
 		control.pressControl(true, 'surface1', feedback, false)
 		control.pressControl(true, 'surface1', null, false)
 		control.pressControl(false, 'surface1', feedback, false)

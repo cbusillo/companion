@@ -1,6 +1,10 @@
 import type { JsonValue } from 'type-fest'
 import type { CompanionSurfaceConfigField } from '@companion-app/shared/Model/Surfaces.js'
-import type { DiscoveredRemoteSurfaceInfo, RemoteSurfaceConnectionInfo } from '@companion-surface/base'
+import type {
+	DiscoveredRemoteSurfaceInfo,
+	RemoteSurfaceConnectionInfo,
+	SurfaceControlEvent,
+} from '@companion-surface/base'
 import type {
 	HIDDevice,
 	LogLevel,
@@ -58,7 +62,7 @@ export interface HostToSurfaceModuleEvents {
 	updateConfig: (msg: UpdateConfigMessage) => void
 
 	setBrightness: (msg: SetBrightnessMessage) => void
-	triggerHapticFeedback: (msg: TriggerHapticFeedbackMessage) => void
+	controlEvent: (msg: ControlEventMessage) => void
 	drawControls: (msg: DrawControlMessage) => void
 	blankSurface: (msg: BlankSurfaceMessage) => void
 	setLocked: (msg: SetLockedMessage) => void
@@ -194,10 +198,12 @@ export interface SetBrightnessMessage {
 	brightness: number
 }
 
-export interface TriggerHapticFeedbackMessage {
+export interface ControlEventMessage {
 	surfaceId: string
-	/** Captured from the open result; a reconnect must not receive a previous connection's request. */
+	/** Captured from the open result; a reconnect must not receive a previous connection's event. */
 	connectionId: string
+	controlId: string
+	event: SurfaceControlEvent
 }
 export interface DrawControlMessage {
 	surfaceId: string

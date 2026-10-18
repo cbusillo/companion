@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ButtonReferenceButtonModel, LayeredButtonModel } from '@companion-app/shared/Model/ButtonModel.js'
 import type { ControlLocation } from '@companion-app/shared/Model/Common.js'
-import { ButtonHapticFeedback } from '../../../../lib/Controls/ButtonHapticFeedback.js'
+import { ButtonPressEvents } from '../../../../lib/Controls/ButtonPressEvents.js'
 import type { ControlDependencies } from '../../../../lib/Controls/ControlDependencies.js'
 import { ControlButtonReference } from '../../../../lib/Controls/ControlTypes/Button/Reference.js'
 import { mangleReferenceSurfaceId, MAX_REFERENCE_DEPTH } from '../../../../lib/Surface/ReferenceSurfaceId.js'
@@ -128,15 +128,15 @@ describe('ControlButtonReference', () => {
 		it('forwards to the resolved target with a mangled surfaceId', () => {
 			getControlIdAt.mockReturnValue('bank:target')
 			const control = createControl(plainLocation('4/0/0'))
-			const hapticFeedback = new ButtonHapticFeedback(vi.fn())
+			const pressEvents = new ButtonPressEvents(vi.fn())
 
-			control.pressControl(true, 'surface1', hapticFeedback, false)
+			control.pressControl(true, 'surface1', pressEvents, false)
 
 			expect(controlsAccessor.pressControl).toHaveBeenCalledWith(
 				'bank:target',
 				true,
 				mangleReferenceSurfaceId('surface1', MY_CONTROL_ID),
-				hapticFeedback,
+				pressEvents,
 				false
 			)
 		})

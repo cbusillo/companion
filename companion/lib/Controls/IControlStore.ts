@@ -3,7 +3,7 @@ import type {
 	ExpressionParserOptions,
 	VariablesAndExpressionParser,
 } from '../Variables/VariablesAndExpressionParser.js'
-import type { ButtonHapticFeedback } from './ButtonHapticFeedback.js'
+import type { ButtonPressEvents } from './ButtonPressEvents.js'
 import type { NewFeedbackValue } from './Entities/Types.js'
 import type { SomeControl } from './IControlFragments.js'
 
@@ -41,7 +41,7 @@ export interface IControlStore {
 		controlId: string,
 		pressed: boolean,
 		surfaceId: string | undefined,
-		hapticFeedback: ButtonHapticFeedback | null,
+		pressEvents: ButtonPressEvents | null,
 		force?: boolean
 	): boolean
 

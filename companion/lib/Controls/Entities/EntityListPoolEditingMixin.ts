@@ -545,8 +545,10 @@ export function WithStepEditing<TBase extends AbstractConstructor<ButtonEntityLi
 
 			// Forget the step from the options
 			step.options.runWhileHeld = step.options.runWhileHeld.filter((id) => id !== setIdNumber)
-			step.options.hapticDisabledSets = step.options.hapticDisabledSets?.filter((id) => id !== setIdNumber)
-			if (step.options.hapticDisabledSets?.length === 0) delete step.options.hapticDisabledSets
+			step.options.controlEventsDisabledSets = step.options.controlEventsDisabledSets?.filter(
+				(id) => id !== setIdNumber
+			)
+			if (step.options.controlEventsDisabledSets?.length === 0) delete step.options.controlEventsDisabledSets
 
 			// Assume it exists
 			step.sets.delete(setIdNumber)
@@ -582,31 +584,32 @@ export function WithStepEditing<TBase extends AbstractConstructor<ButtonEntityLi
 			const runWhileHeldIndex = step.options.runWhileHeld.indexOf(oldSetIdNumber)
 			if (runWhileHeldIndex !== -1) step.options.runWhileHeld[runWhileHeldIndex] = newSetIdNumber
 
-			const hapticDisabledIndex = step.options.hapticDisabledSets?.indexOf(oldSetIdNumber) ?? -1
-			if (hapticDisabledIndex !== -1) step.options.hapticDisabledSets![hapticDisabledIndex] = newSetIdNumber
+			const controlEventsDisabledIndex = step.options.controlEventsDisabledSets?.indexOf(oldSetIdNumber) ?? -1
+			if (controlEventsDisabledIndex !== -1)
+				step.options.controlEventsDisabledSets![controlEventsDisabledIndex] = newSetIdNumber
 
 			this.reportChange({ redraw: false })
 
 			return true
 		}
 
-		actionSetHapticFeedback(stepId: string, setId: ActionSetId, enabled: boolean): boolean {
+		actionSetControlEvents(stepId: string, setId: ActionSetId, enabled: boolean): boolean {
 			const step = this.steps.get(stepId)
 			if (!step) return false
 
 			if (setId !== 'down' && setId !== 'up' && (typeof setId !== 'number' || !Number.isFinite(setId))) return false
 			if (!step.sets.has(setId)) return false
 
-			const hapticDisabledSets = step.options.hapticDisabledSets ?? []
-			const disabledIndex = hapticDisabledSets.indexOf(setId)
+			const controlEventsDisabledSets = step.options.controlEventsDisabledSets ?? []
+			const disabledIndex = controlEventsDisabledSets.indexOf(setId)
 			if ((enabled && disabledIndex === -1) || (!enabled && disabledIndex !== -1)) return true
 
 			if (!enabled) {
-				hapticDisabledSets.push(setId)
-				step.options.hapticDisabledSets = hapticDisabledSets
+				controlEventsDisabledSets.push(setId)
+				step.options.controlEventsDisabledSets = controlEventsDisabledSets
 			} else {
-				hapticDisabledSets.splice(disabledIndex, 1)
-				if (hapticDisabledSets.length === 0) delete step.options.hapticDisabledSets
+				controlEventsDisabledSets.splice(disabledIndex, 1)
+				if (controlEventsDisabledSets.length === 0) delete step.options.controlEventsDisabledSets
 			}
 
 			this.reportChange({ redraw: false })

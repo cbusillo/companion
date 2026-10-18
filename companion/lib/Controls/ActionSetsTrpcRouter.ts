@@ -77,7 +77,7 @@ export function createActionSetsTrpcRouter(controlsMap: Map<string, SomeControl<
 				return getEditableActionSets(control).actionSetRunWhileHeld(input.stepId, input.setId, input.runWhileHeld)
 			}),
 
-		setHapticFeedback: publicProcedure
+		setControlEvents: publicProcedure
 			.input(
 				z.object({
 					controlId: z.string(),
@@ -90,7 +90,7 @@ export function createActionSetsTrpcRouter(controlsMap: Map<string, SomeControl<
 				const control = controlsMap.get(input.controlId)
 				if (!control) return false
 
-				return getEditableActionSets(control).actionSetHapticFeedback(input.stepId, input.setId, input.enabled)
+				return getEditableActionSets(control).actionSetControlEvents(input.stepId, input.setId, input.enabled)
 			}),
 	})
 }

@@ -49,8 +49,8 @@ beforeEach(() => {
 describe('EditActionsRelease', () => {
 	it('does not apply metadata to an existing group when rename is refused', async () => {
 		rename.mockResolvedValue(false)
-		const setHapticFeedback = vi.fn()
-		const service = { setHapticFeedback } as unknown as IControlActionStepsAndSetsService
+		const setControlEvents = vi.fn()
+		const service = { setControlEvents } as unknown as IControlActionStepsAndSetsService
 		const user = userEvent.setup()
 
 		render(
@@ -73,7 +73,7 @@ describe('EditActionsRelease', () => {
 		const duration = within(dialog).getByLabelText('Press duration')
 		await user.clear(duration)
 		await user.type(duration, '2000')
-		await user.click(within(dialog).getByRole('checkbox', { name: 'Haptic feedback' }))
+		await user.click(within(dialog).getByRole('checkbox', { name: 'Surface cue' }))
 
 		await act(async () => {
 			await user.click(within(dialog).getByRole('button', { name: 'Save' }))
@@ -81,13 +81,13 @@ describe('EditActionsRelease', () => {
 
 		expect(rename).toHaveBeenCalledWith({ controlId: 'control0', stepId: '0', oldSetId: 1000, newSetId: 2000 })
 		expect(setRunWhileHeld).not.toHaveBeenCalled()
-		expect(setHapticFeedback).not.toHaveBeenCalled()
+		expect(setControlEvents).not.toHaveBeenCalled()
 	})
 
 	it('relies on a successful rename to preserve unchanged group preferences', async () => {
 		rename.mockResolvedValue(true)
-		const setHapticFeedback = vi.fn()
-		const service = { setHapticFeedback } as unknown as IControlActionStepsAndSetsService
+		const setControlEvents = vi.fn()
+		const service = { setControlEvents } as unknown as IControlActionStepsAndSetsService
 		const user = userEvent.setup()
 
 		render(
@@ -95,7 +95,7 @@ describe('EditActionsRelease', () => {
 				controlId="control0"
 				location={{ pageNumber: 1, row: 0, column: 0 }}
 				action_sets={actionSets}
-				stepOptions={{ runWhileHeld: [], hapticDisabledSets: [1000] }}
+				stepOptions={{ runWhileHeld: [], controlEventsDisabledSets: [1000] }}
 				stepId="0"
 				service={service}
 				removeSet={vi.fn()}
@@ -117,12 +117,12 @@ describe('EditActionsRelease', () => {
 
 		expect(rename).toHaveBeenCalledWith({ controlId: 'control0', stepId: '0', oldSetId: 1000, newSetId: 1500 })
 		expect(setRunWhileHeld).not.toHaveBeenCalled()
-		expect(setHapticFeedback).not.toHaveBeenCalled()
+		expect(setControlEvents).not.toHaveBeenCalled()
 	})
 
-	it('updates haptic feedback when the duration is unchanged', async () => {
-		const setHapticFeedback = vi.fn()
-		const service = { setHapticFeedback } as unknown as IControlActionStepsAndSetsService
+	it('updates the surface cue when the duration is unchanged', async () => {
+		const setControlEvents = vi.fn()
+		const service = { setControlEvents } as unknown as IControlActionStepsAndSetsService
 		const user = userEvent.setup()
 
 		render(
@@ -142,21 +142,21 @@ describe('EditActionsRelease', () => {
 		await user.click(within(group).getByTitle('Configure'))
 
 		const dialog = screen.getByRole('dialog')
-		await user.click(within(dialog).getByRole('checkbox', { name: 'Haptic feedback' }))
+		await user.click(within(dialog).getByRole('checkbox', { name: 'Surface cue' }))
 		await act(async () => {
 			await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 		})
 
 		expect(rename).not.toHaveBeenCalled()
 		expect(setRunWhileHeld).not.toHaveBeenCalled()
-		expect(setHapticFeedback).toHaveBeenCalledTimes(1)
-		expect(setHapticFeedback).toHaveBeenCalledWith('0', 1000, false)
+		expect(setControlEvents).toHaveBeenCalledTimes(1)
+		expect(setControlEvents).toHaveBeenCalledWith('0', 1000, false)
 	})
 
-	it('updates haptic feedback on the renamed group after a successful rename', async () => {
+	it('updates the surface cue on the renamed group after a successful rename', async () => {
 		rename.mockResolvedValue(true)
-		const setHapticFeedback = vi.fn()
-		const service = { setHapticFeedback } as unknown as IControlActionStepsAndSetsService
+		const setControlEvents = vi.fn()
+		const service = { setControlEvents } as unknown as IControlActionStepsAndSetsService
 		const user = userEvent.setup()
 
 		render(
@@ -180,7 +180,7 @@ describe('EditActionsRelease', () => {
 		await user.clear(duration)
 		await user.type(duration, '1500')
 		await user.click(within(dialog).getByRole('switch', { name: 'Execute while held' }))
-		await user.click(within(dialog).getByRole('checkbox', { name: 'Haptic feedback' }))
+		await user.click(within(dialog).getByRole('checkbox', { name: 'Surface cue' }))
 		await act(async () => {
 			await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 		})
@@ -193,7 +193,7 @@ describe('EditActionsRelease', () => {
 			setId: 1500,
 			runWhileHeld: true,
 		})
-		expect(setHapticFeedback).toHaveBeenCalledTimes(1)
-		expect(setHapticFeedback).toHaveBeenCalledWith('0', 1500, false)
+		expect(setControlEvents).toHaveBeenCalledTimes(1)
+		expect(setControlEvents).toHaveBeenCalledWith('0', 1500, false)
 	})
 })

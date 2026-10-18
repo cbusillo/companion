@@ -296,11 +296,23 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	getActionDefinitions(): Record<string, InternalActionDefinition> {
 		return {
-			haptic_feedback: {
-				label: 'Surface: Haptic feedback',
+			surface_cue: {
+				label: 'Surface: Show cue on this button',
 				description:
-					'Give brief feedback on a supported surface. The surface Haptic feedback setting must be enabled. Disable automatic feedback for this action group to avoid a second cue.',
-				options: [{ ...CHOICES_SURFACE_ID, label: 'Surface' }],
+					'Ask a supported surface to show a cue on the control for this button, for example a haptic click. Nothing happens if the button is not shown on that surface. Turn off the automatic surface cue for this group to avoid a second cue.',
+				options: [
+					{ ...CHOICES_SURFACE_ID, label: 'Surface' },
+					{
+						type: 'dropdown',
+						label: 'Cue',
+						id: 'event',
+						default: 'press',
+						choices: [
+							{ id: 'press', label: 'Press' },
+							{ id: 'hold', label: 'Hold' },
+						],
+					},
+				],
 				optionsSupportExpressions: true,
 			},
 			set_brightness: {
@@ -523,9 +535,12 @@ export class InternalSurface extends EventEmitter<InternalModuleFragmentEvents> 
 
 	executeAction(action: ActionForInternalExecution, extras: RunActionExtras): InternalActionResult {
 		switch (action.definitionId) {
-			case 'haptic_feedback': {
+			case 'surface_cue': {
 				const surfaceId = this.#fetchSurfaceId(action.options, extras)
-				if (surfaceId) this.#surfaceController.triggerDeviceHapticFeedback(surfaceId)
+				const event = action.options.event === 'hold' ? 'hold' : 'press'
+				if (surfaceId && extras.location) {
+					this.#surfaceController.sendDeviceControlEvent(surfaceId, extras.location, event)
+				}
 				break
 			}
 			case 'set_brightness': {

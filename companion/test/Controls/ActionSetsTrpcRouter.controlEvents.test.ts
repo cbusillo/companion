@@ -23,15 +23,15 @@ function createCaller(actionSets: SomeStepManager) {
 	return t.createCallerFactory(createActionSetsTrpcRouter(controls))(createMockTrpcContext())
 }
 
-describe('action-set haptic preference router', () => {
+describe('action-set surface cue preference router', () => {
 	test('updates an editable action set', async () => {
 		const { pool } = createPool()
 		const caller = createCaller(pool)
 
 		await expect(
-			caller.setHapticFeedback({ controlId: 'control0', stepId: '0', setId: 'down', enabled: false })
+			caller.setControlEvents({ controlId: 'control0', stepId: '0', setId: 'down', enabled: false })
 		).resolves.toBe(true)
-		expect(pool.isActionSetHapticFeedbackEnabled('0', 'down')).toBe(false)
+		expect(pool.isActionSetControlEventsEnabled('0', 'down')).toBe(false)
 	})
 
 	test('rejects rotary groups at the API boundary', async () => {
@@ -39,7 +39,7 @@ describe('action-set haptic preference router', () => {
 		const caller = createCaller(pool)
 
 		await expect(
-			caller.setHapticFeedback({
+			caller.setControlEvents({
 				controlId: 'control0',
 				stepId: '0',
 				setId: 'rotate_left' as never,
@@ -53,7 +53,7 @@ describe('action-set haptic preference router', () => {
 		const caller = createCaller(pool)
 
 		await expect(
-			caller.setHapticFeedback({ controlId: 'control0', stepId: '0', setId: 'down', enabled: false })
+			caller.setControlEvents({ controlId: 'control0', stepId: '0', setId: 'down', enabled: false })
 		).rejects.toThrow('does not support this operation')
 	})
 })

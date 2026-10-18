@@ -2,20 +2,20 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { useRef, useState } from 'react'
 import { useArgs } from 'storybook/preview-api'
 import { Button } from '~/Components/Button'
-import { ActionSetHapticFeedbackCheckbox } from './ActionSetHapticFeedbackCheckbox'
+import { ActionSetControlEventsCheckbox } from './ActionSetControlEventsCheckbox'
 import {
 	EditDurationGroupPropertiesModal,
 	type EditDurationGroupPropertiesModalRef,
 } from './EditDurationGroupPropertiesModal'
 
 const meta = {
-	title: 'Buttons/Edit Button/Haptic feedback',
-	component: ActionSetHapticFeedbackCheckbox,
+	title: 'Buttons/Edit Button/Surface cue',
+	component: ActionSetControlEventsCheckbox,
 	args: {
 		enabled: true,
 		setEnabled: () => {},
 	},
-} satisfies Meta<typeof ActionSetHapticFeedbackCheckbox>
+} satisfies Meta<typeof ActionSetControlEventsCheckbox>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -34,9 +34,9 @@ export const OnOff: Story = {
 
 		return (
 			<div>
-				<ActionSetHapticFeedbackCheckbox enabled={enabled} setEnabled={(value) => setArgs({ enabled: value })} />
+				<ActionSetControlEventsCheckbox enabled={enabled} setEnabled={(value) => setArgs({ enabled: value })} />
 				<p className="mt-2" aria-live="polite">
-					Automatic haptic feedback: {enabled ? 'On' : 'Off'}
+					Automatic surface cue: {enabled ? 'On' : 'Off'}
 				</p>
 			</div>
 		)
@@ -46,13 +46,13 @@ export const OnOff: Story = {
 interface DurationGroupValues {
 	duration: number
 	whileHeld: boolean
-	hapticFeedback: boolean
+	controlEvents: boolean
 }
 
 const initialDurationGroup: DurationGroupValues = {
 	duration: 1000,
 	whileHeld: false,
-	hapticFeedback: true,
+	controlEvents: true,
 }
 
 export const DurationGroupModal: Story = {
@@ -73,9 +73,9 @@ export const DurationGroupModal: Story = {
 			modalRef.current?.show(
 				values.duration,
 				values.whileHeld,
-				values.hapticFeedback,
-				(duration, whileHeld, hapticFeedback) => {
-					const savedValues = { duration, whileHeld, hapticFeedback }
+				values.controlEvents,
+				(duration, whileHeld, controlEvents) => {
+					const savedValues = { duration, whileHeld, controlEvents }
 					setValues(savedValues)
 					setLastSave(savedValues)
 				}
@@ -89,7 +89,7 @@ export const DurationGroupModal: Story = {
 				</Button>
 				<p className="mt-2 font-mono" aria-live="polite">
 					{lastSave
-						? `Last save: duration=${lastSave.duration}ms, whileHeld=${lastSave.whileHeld}, hapticFeedback=${lastSave.hapticFeedback}`
+						? `Last save: duration=${lastSave.duration}ms, whileHeld=${lastSave.whileHeld}, controlEvents=${lastSave.controlEvents}`
 						: 'Last save: none'}
 				</p>
 				<EditDurationGroupPropertiesModal ref={modalRef} />

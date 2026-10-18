@@ -91,34 +91,33 @@ function makeGroup(overrides: Partial<ClientDevicesListItem>): ClientDevicesList
 }
 
 describe('InternalSurface', () => {
-	describe('executeAction: haptic feedback', () => {
-		test('self selects the invoking surface and an explicit selection uses that device', () => {
+	describe('executeAction: surface cue', () => {
+		const location = { pageNumber: 2, row: 1, column: 3 }
+
+		test('self selects the invoking surface, and an explicit selection uses that device', () => {
 			const { surface, surfaceController } = createSurface()
 			surface.executeAction(
-				makeExecAction('haptic_feedback', { surfaceId: 'self' }),
-				makeExtras({ surfaceId: 'deck-7' })
+				makeExecAction('surface_cue', { surfaceId: 'self', event: 'press' }),
+				makeExtras({ surfaceId: 'deck-7', location })
 			)
-			expect(surfaceController.triggerDeviceHapticFeedback).toHaveBeenLastCalledWith('deck-7')
-			surface.executeAction(makeExecAction('haptic_feedback', { surfaceId: 'deck-8' }), fakeExtras)
-			expect(surfaceController.triggerDeviceHapticFeedback).toHaveBeenLastCalledWith('deck-8')
+			expect(surfaceController.sendDeviceControlEvent).toHaveBeenLastCalledWith('deck-7', location, 'press')
+			surface.executeAction(
+				makeExecAction('surface_cue', { surfaceId: 'deck-8', event: 'hold' }),
+				makeExtras({ location })
+			)
+			expect(surfaceController.sendDeviceControlEvent).toHaveBeenLastCalledWith('deck-8', location, 'hold')
 			expect(surfaceController.getGroupIdFromDeviceId).not.toHaveBeenCalled()
 		})
 
-		test('missing self and empty targets do nothing', () => {
+		test('missing self, empty targets and actions without a button do nothing', () => {
 			const { surface, surfaceController } = createSurface()
 			surface.executeAction(
-				makeExecAction('haptic_feedback', { surfaceId: 'self' }),
-				makeExtras({ surfaceId: undefined })
+				makeExecAction('surface_cue', { surfaceId: 'self', event: 'press' }),
+				makeExtras({ surfaceId: undefined, location })
 			)
-			surface.executeAction(makeExecAction('haptic_feedback', { surfaceId: '' }), fakeExtras)
-			expect(surfaceController.triggerDeviceHapticFeedback).not.toHaveBeenCalled()
-		})
-
-		test('offers individual surfaces with self as the default', () => {
-			const { surface } = createSurface()
-			expect(surface.getActionDefinitions().haptic_feedback.options).toEqual([
-				expect.objectContaining({ id: 'surfaceId', listMode: 'surfaces', default: 'self', includeSelf: true }),
-			])
+			surface.executeAction(makeExecAction('surface_cue', { surfaceId: '', event: 'press' }), makeExtras({ location }))
+			surface.executeAction(makeExecAction('surface_cue', { surfaceId: 'deck-8', event: 'press' }), fakeExtras)
+			expect(surfaceController.sendDeviceControlEvent).not.toHaveBeenCalled()
 		})
 	})
 
@@ -653,7 +652,7 @@ describe('InternalSurface', () => {
 
 			expect(Object.keys(surface.getActionDefinitions()).sort()).toEqual(
 				[
-					'haptic_feedback',
+					'surface_cue',
 					'set_brightness',
 					'adjust_brightness',
 					'set_page',

@@ -66,8 +66,11 @@ import {
  *          amount (velocity/step count): sign is the direction, magnitude is the number of steps.
  *          `0` still means a single counter-clockwise step for backwards compatibility. Support is
  *          advertised via ROTARY_AMOUNT in CAPS.
+ * 1.15.0 - Add CONTROL_EVENTS to ADD-DEVICE. A surface that sets it receives CONTROL-EVENT with KEY or CONTROLID
+ *          and EVENT, when a press of that control ran actions (EVENT=press) or a group set to run while held
+ *          fired (EVENT=hold). How to show it is up to the surface. Ignore unknown EVENT values, as more may be added.
  */
-export const API_VERSION = '1.14.0'
+export const API_VERSION = '1.15.0'
 
 /**
  * Maximum length of a single line (command) the receive buffer will accumulate before the
@@ -286,6 +289,7 @@ export class ServiceSatelliteApi {
 			params.PINCODE_LOCK !== undefined && (params.PINCODE_LOCK === 'FULL' || params.PINCODE_LOCK === 'PARTIAL')
 		const canChangePage =
 			typeof params.CAN_CHANGE_PAGE === 'string' && params.CAN_CHANGE_PAGE ? params.CAN_CHANGE_PAGE : undefined
+		const supportsControlEvents = params.CONTROL_EVENTS !== undefined && isTruthy(params.CONTROL_EVENTS)
 
 		let transferVariables: SatelliteTransferableValue[]
 		try {
@@ -331,6 +335,7 @@ export class ServiceSatelliteApi {
 			configFields: processedConfigFields,
 			canChangePage,
 			bitmapFormat,
+			supportsControlEvents,
 		})
 
 		this.#devices.set(id, {

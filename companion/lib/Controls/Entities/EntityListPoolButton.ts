@@ -402,19 +402,19 @@ export abstract class ButtonEntityListPoolBase extends ControlEntityListPoolBase
 		const options = existingOptions
 			? structuredClone(existingOptions)
 			: structuredClone(ButtonEntityListPoolBase.DefaultStepOptions)
-		const rawHapticDisabledSets: unknown = options.hapticDisabledSets
-		if (Array.isArray(rawHapticDisabledSets)) {
-			const hapticDisabledSets = rawHapticDisabledSets.filter(
+		const rawControlEventsDisabledSets: unknown = options.controlEventsDisabledSets
+		if (Array.isArray(rawControlEventsDisabledSets)) {
+			const controlEventsDisabledSets = rawControlEventsDisabledSets.filter(
 				(setId, index): setId is ActionSetId =>
 					(setId === 'down' ||
 						setId === 'up' ||
 						(typeof setId === 'number' && Number.isFinite(setId) && sets.has(setId))) &&
-					rawHapticDisabledSets.indexOf(setId) === index
+					rawControlEventsDisabledSets.indexOf(setId) === index
 			)
-			if (hapticDisabledSets.length > 0) options.hapticDisabledSets = hapticDisabledSets
-			else delete options.hapticDisabledSets
+			if (controlEventsDisabledSets.length > 0) options.controlEventsDisabledSets = controlEventsDisabledSets
+			else delete options.controlEventsDisabledSets
 		} else {
-			delete options.hapticDisabledSets
+			delete options.controlEventsDisabledSets
 		}
 
 		return {
@@ -423,14 +423,14 @@ export abstract class ButtonEntityListPoolBase extends ControlEntityListPoolBase
 		}
 	}
 
-	isActionSetHapticFeedbackEnabled(stepId: string, setId: ActionSetId): boolean {
+	isActionSetControlEventsEnabled(stepId: string, setId: ActionSetId): boolean {
 		const step = this.steps.get(stepId)
 		if (!step) return false
 
 		if (setId !== 'down' && setId !== 'up' && (typeof setId !== 'number' || !Number.isFinite(setId))) return false
 		if (!step.sets.has(setId)) return false
 
-		return !step.options.hapticDisabledSets?.includes(setId)
+		return !step.options.controlEventsDisabledSets?.includes(setId)
 	}
 
 	/**

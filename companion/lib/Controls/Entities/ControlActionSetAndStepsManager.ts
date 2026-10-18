@@ -33,9 +33,9 @@ export interface ControlStepsRuntimeManager {
 	stepSelectCurrent(stepId: string): boolean
 
 	/**
-	 * Whether automatic haptic feedback is enabled for an action-set
+	 * Whether automatic surface cues (control events) are enabled for an action-set
 	 */
-	isActionSetHapticFeedbackEnabled(stepId: string, setId: ActionSetId): boolean
+	isActionSetControlEventsEnabled(stepId: string, setId: ActionSetId): boolean
 }
 
 /**
@@ -67,9 +67,9 @@ export interface ControlActionSetAndStepsEditor extends Omit<ControlStepsRuntime
 	actionSetRunWhileHeld(stepId: string, setId: ActionSetId, runWhileHeld: boolean): boolean
 
 	/**
-	 * Set whether automatic haptic feedback is enabled for an action-set
+	 * Set whether automatic surface cues (control events) are enabled for an action-set
 	 */
-	actionSetHapticFeedback(stepId: string, setId: ActionSetId, enabled: boolean): boolean
+	actionSetControlEvents(stepId: string, setId: ActionSetId, enabled: boolean): boolean
 
 	/**
 	 * Add a step to this control

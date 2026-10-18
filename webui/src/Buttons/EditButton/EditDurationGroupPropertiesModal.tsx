@@ -6,14 +6,15 @@ import { Grid } from '~/Components/Grid'
 import { Modal } from '~/Components/Modal'
 import { NumberInputField } from '~/Components/NumberInputField.js'
 import { SwitchInputField } from '~/Components/SwitchInputField'
+import { SURFACE_CUE_TOOLTIP } from './SurfaceCueText.js'
 
-type EditDurationCompleteCallback = (duration: number, whileHeld: boolean, hapticFeedback: boolean) => void
+type EditDurationCompleteCallback = (duration: number, whileHeld: boolean, controlEvents: boolean) => void
 
 export interface EditDurationGroupPropertiesModalRef {
 	show(
 		duration: number,
 		whileHeld: boolean,
-		hapticFeedback: boolean,
+		controlEvents: boolean,
 		completeCallback: EditDurationCompleteCallback
 	): void
 }
@@ -25,7 +26,7 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 
 		const [newDurationValue, setNewDurationValue] = useState<number | null>(null)
 		const [newWhileHeldValue, setNewWhileHeldValue] = useState<boolean | null>(null)
-		const [newHapticFeedbackValue, setNewHapticFeedbackValue] = useState<boolean | null>(null)
+		const [newControlEventsValue, setNewControlEventsValue] = useState<boolean | null>(null)
 
 		const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -37,23 +38,23 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 				setShow(false)
 				setNewDurationValue(null)
 				setNewWhileHeldValue(null)
-				setNewHapticFeedbackValue(null)
+				setNewControlEventsValue(null)
 
 				// completion callback
 				const cb = data?.[1]
-				if (!cb || newDurationValue === null || newWhileHeldValue === null || newHapticFeedbackValue === null) return
-				cb(newDurationValue, newWhileHeldValue, newHapticFeedbackValue)
+				if (!cb || newDurationValue === null || newWhileHeldValue === null || newControlEventsValue === null) return
+				cb(newDurationValue, newWhileHeldValue, newControlEventsValue)
 			},
-			[data, newDurationValue, newWhileHeldValue, newHapticFeedbackValue]
+			[data, newDurationValue, newWhileHeldValue, newControlEventsValue]
 		)
 
 		useImperativeHandle(
 			ref,
 			() => ({
-				show(duration, whileHeld, hapticFeedback, completeCallback) {
+				show(duration, whileHeld, controlEvents, completeCallback) {
 					setNewDurationValue(duration)
 					setNewWhileHeldValue(whileHeld)
-					setNewHapticFeedbackValue(hapticFeedback)
+					setNewControlEventsValue(controlEvents)
 					setData([duration, completeCallback])
 					setShow(true)
 				},
@@ -67,7 +68,7 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 
 		const pressDurationFieldId = useId()
 		const whileHeldFieldId = useId()
-		const hapticFeedbackFieldId = useId()
+		const controlEventsFieldId = useId()
 
 		return (
 			<Modal.Root open={show} onOpenChange={setShow} onOpenChangeComplete={onOpenChangeComplete}>
@@ -106,14 +107,14 @@ export const EditDurationGroupPropertiesModal = forwardRef<EditDurationGroupProp
 										/>
 									</Grid.Col>
 
-									<FormLabel htmlFor={hapticFeedbackFieldId} sm={4} column="sm">
-										Haptic feedback
+									<FormLabel htmlFor={controlEventsFieldId} sm={4} column="sm" title={SURFACE_CUE_TOOLTIP}>
+										Surface cue
 									</FormLabel>
 									<Grid.Col sm={8}>
 										<CheckboxInputField
-											id={hapticFeedbackFieldId}
-											value={!!newHapticFeedbackValue}
-											setValue={setNewHapticFeedbackValue}
+											id={controlEventsFieldId}
+											value={!!newControlEventsValue}
+											setValue={setNewControlEventsValue}
 										/>
 									</Grid.Col>
 								</Form>

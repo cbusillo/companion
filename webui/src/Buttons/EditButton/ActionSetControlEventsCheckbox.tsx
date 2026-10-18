@@ -1,18 +1,20 @@
 import { CheckboxInputFieldWithLabel } from '~/Components/CheckboxInputField.js'
+import { SURFACE_CUE_TOOLTIP } from './SurfaceCueText.js'
 
-interface ActionSetHapticFeedbackCheckboxProps {
+interface ActionSetControlEventsCheckboxProps {
 	enabled: boolean
 	setEnabled: (enabled: boolean) => void
 }
 
-export function ActionSetHapticFeedbackCheckbox({
+export function ActionSetControlEventsCheckbox({
 	enabled,
 	setEnabled,
-}: ActionSetHapticFeedbackCheckboxProps): React.JSX.Element {
+}: ActionSetControlEventsCheckboxProps): React.JSX.Element {
 	return (
 		<CheckboxInputFieldWithLabel
 			className="me-2 flex items-center"
-			label="Haptic feedback"
+			label="Surface cue"
+			tooltip={SURFACE_CUE_TOOLTIP}
 			value={enabled}
 			setValue={(value) => setEnabled(value)}
 		/>

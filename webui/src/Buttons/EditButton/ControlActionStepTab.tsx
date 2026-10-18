@@ -9,7 +9,7 @@ import { ControlEntitiesEditor } from '~/Controls/EntitiesEditor.js'
 import { MyErrorBoundary } from '~/Resources/Error.js'
 import type { IControlActionStepsAndSetsService } from '~/Services/Controls/ControlActionStepsAndSetsService.js'
 import type { LocalVariablesStore } from '../../Controls/LocalVariablesStore.js'
-import { ActionSetHapticFeedbackCheckbox } from './ActionSetHapticFeedbackCheckbox.js'
+import { ActionSetControlEventsCheckbox } from './ActionSetControlEventsCheckbox.js'
 import { EditActionsRelease } from './EditActionsRelease.js'
 
 export interface ControlActionStepTabProps {
@@ -50,8 +50,8 @@ export function ControlActionStepTab({
 			</InlineHelpIcon>
 		</>
 	)
-	const hapticFeedbackEnabled = (setId: 'down' | 'up'): boolean =>
-		!selectedStepProps.options.hapticDisabledSets?.includes(setId)
+	const controlEventsEnabled = (setId: 'down' | 'up'): boolean =>
+		!selectedStepProps.options.controlEventsDisabledSets?.includes(setId)
 
 	return (
 		<>
@@ -143,10 +143,10 @@ export function ControlActionStepTab({
 							<ControlEntitiesEditor
 								heading={`Press actions`}
 								headingActions={[
-									<ActionSetHapticFeedbackCheckbox
-										key="haptic-feedback"
-										enabled={hapticFeedbackEnabled('down')}
-										setEnabled={(enabled) => service.setHapticFeedback(selectedKey, 'down', enabled)}
+									<ActionSetControlEventsCheckbox
+										key="control-events"
+										enabled={controlEventsEnabled('down')}
+										setEnabled={(enabled) => service.setControlEvents(selectedKey, 'down', enabled)}
 									/>,
 								]}
 								controlId={controlId}

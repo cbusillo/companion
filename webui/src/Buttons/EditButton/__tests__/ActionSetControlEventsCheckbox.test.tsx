@@ -1,18 +1,18 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { ActionSetHapticFeedbackCheckbox } from '../ActionSetHapticFeedbackCheckbox.js'
+import { ActionSetControlEventsCheckbox } from '../ActionSetControlEventsCheckbox.js'
 import {
 	EditDurationGroupPropertiesModal,
 	type EditDurationGroupPropertiesModalRef,
 } from '../EditDurationGroupPropertiesModal.js'
 
-describe('ActionSetHapticFeedbackCheckbox', () => {
+describe('ActionSetControlEventsCheckbox', () => {
 	it('renders an accessible checked preference and reports changes', () => {
 		const setEnabled = vi.fn()
-		render(<ActionSetHapticFeedbackCheckbox enabled setEnabled={setEnabled} />)
+		render(<ActionSetControlEventsCheckbox enabled setEnabled={setEnabled} />)
 
-		const checkbox = screen.getByRole('checkbox', { name: 'Haptic feedback' })
+		const checkbox = screen.getByRole('checkbox', { name: 'Surface cue' })
 		expect(checkbox).toBeChecked()
 
 		fireEvent.click(checkbox)
@@ -20,20 +20,20 @@ describe('ActionSetHapticFeedbackCheckbox', () => {
 	})
 
 	it('renders an unchecked preference', () => {
-		render(<ActionSetHapticFeedbackCheckbox enabled={false} setEnabled={vi.fn()} />)
+		render(<ActionSetControlEventsCheckbox enabled={false} setEnabled={vi.fn()} />)
 
-		expect(screen.getByRole('checkbox', { name: 'Haptic feedback' })).not.toBeChecked()
+		expect(screen.getByRole('checkbox', { name: 'Surface cue' })).not.toBeChecked()
 	})
 })
 
-describe('EditDurationGroupPropertiesModal haptic preference', () => {
+describe('EditDurationGroupPropertiesModal surface cue preference', () => {
 	it('renders the numeric group preference and returns its updated value', () => {
 		const ref = createRef<EditDurationGroupPropertiesModalRef>()
 		const complete = vi.fn()
 		render(<EditDurationGroupPropertiesModal ref={ref} />)
 
 		act(() => ref.current?.show(1000, false, true, complete))
-		const checkbox = screen.getByRole('checkbox', { name: 'Haptic feedback' })
+		const checkbox = screen.getByRole('checkbox', { name: 'Surface cue' })
 		expect(checkbox).toBeChecked()
 
 		fireEvent.click(checkbox)

@@ -10,7 +10,7 @@ import { MyErrorBoundary } from '~/Resources/Error.js'
 import { trpc, useMutationExt } from '~/Resources/TRPC.js'
 import type { IControlActionStepsAndSetsService } from '~/Services/Controls/ControlActionStepsAndSetsService.js'
 import type { LocalVariablesStore } from '../../Controls/LocalVariablesStore.js'
-import { ActionSetHapticFeedbackCheckbox } from './ActionSetHapticFeedbackCheckbox.js'
+import { ActionSetControlEventsCheckbox } from './ActionSetControlEventsCheckbox.js'
 import {
 	EditDurationGroupPropertiesModal,
 	type EditDurationGroupPropertiesModalRef,
@@ -49,12 +49,12 @@ export function EditActionsRelease({
 				if (isNaN(oldIdNumber)) return
 
 				const runWhileHeld = stepOptions.runWhileHeld.includes(oldIdNumber)
-				const hapticFeedback = !stepOptions.hapticDisabledSets?.includes(oldIdNumber)
+				const controlEvents = !stepOptions.controlEventsDisabledSets?.includes(oldIdNumber)
 				editRef.current?.show(
 					oldIdNumber,
 					runWhileHeld,
-					hapticFeedback,
-					(newId: number, newRunWhileHeld: boolean, newHapticFeedback: boolean) => {
+					controlEvents,
+					(newId: number, newRunWhileHeld: boolean, newControlEvents: boolean) => {
 						if (!isNaN(newId)) {
 							const renamePromise =
 								newId === oldIdNumber
@@ -72,8 +72,8 @@ export function EditActionsRelease({
 												console.error('Failed to set runWhileHeld:', e)
 											})
 									}
-									if (newHapticFeedback !== hapticFeedback) {
-										service.setHapticFeedback(stepId, newId, newHapticFeedback)
+									if (newControlEvents !== controlEvents) {
+										service.setControlEvents(stepId, newId, newControlEvents)
 									}
 								})
 								.catch((e) => {
@@ -130,10 +130,10 @@ export function EditActionsRelease({
 				<ControlEntitiesEditor
 					heading={candidate_sets.length ? 'Short release actions' : 'Release actions'}
 					headingActions={[
-						<ActionSetHapticFeedbackCheckbox
-							key="haptic-feedback"
-							enabled={!stepOptions.hapticDisabledSets?.includes('up')}
-							setEnabled={(enabled) => service.setHapticFeedback(stepId, 'up', enabled)}
+						<ActionSetControlEventsCheckbox
+							key="control-events"
+							enabled={!stepOptions.controlEventsDisabledSets?.includes('up')}
+							setEnabled={(enabled) => service.setControlEvents(stepId, 'up', enabled)}
 						/>,
 					]}
 					controlId={controlId}

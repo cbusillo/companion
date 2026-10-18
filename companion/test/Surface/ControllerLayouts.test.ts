@@ -83,7 +83,7 @@ function createController() {
 
 	const controller = new SurfaceController(db as any, deps)
 
-	return { controller, db }
+	return { controller, db, deps }
 }
 
 function satelliteDeviceInfo(overrides: Partial<SatelliteDeviceInfo> = {}): SatelliteDeviceInfo {
@@ -300,9 +300,9 @@ function addPluginPanel(controller: SurfaceController, surfaceId: string, connec
 	ipc.sendWithCb.mockResolvedValue(undefined)
 	const info: HostOpenDeviceResult = {
 		surfaceId,
-		description: 'Test haptic surface',
+		description: 'Test control event surface',
 		supportsBrightness: false,
-		hapticFeedback: { connectionId },
+		controlEvents: { connectionId },
 		surfaceLayout: neoLayout,
 		transferVariables: null,
 		location: null,
@@ -315,45 +315,47 @@ function addPluginPanel(controller: SurfaceController, surfaceId: string, connec
 	return { ipc, panel }
 }
 
-describe('SurfaceController haptic feedback routing', () => {
+function controlEventCalls(ipc: ReturnType<typeof addPluginPanel>['ipc']) {
+	return ipc.sendWithCb.mock.calls.filter(([event]) => event === 'controlEvent').map(([, msg]) => msg)
+}
+
+describe('SurfaceController control event routing', () => {
 	let controller: SurfaceController
 
 	beforeEach(() => {
-		;({ controller } = createController())
+		const created = createController()
+		controller = created.controller
+		created.deps.pageStore.getPageNumber.mockReturnValue(1)
 	})
 
-	test('routes one request to the connected panel and strips a reference surface id', () => {
+	test('routes an explicit cue to the connected panel and strips a reference surface id', () => {
 		const { ipc } = addPluginPanel(controller, 'test:deck', 'open-1')
+		const location = { pageNumber: 1, row: 1, column: 0 }
 
-		controller.triggerDeviceHapticFeedback('test:deck')
-		expect(ipc.sendWithCb).toHaveBeenCalledWith('triggerHapticFeedback', {
-			surfaceId: 'test:deck',
-			connectionId: 'open-1',
-		})
-
-		ipc.sendWithCb.mockClear()
-		controller.triggerDeviceHapticFeedback(mangleReferenceSurfaceId('test:deck', 'bank:1-0-0'))
-		expect(ipc.sendWithCb).toHaveBeenCalledWith('triggerHapticFeedback', {
-			surfaceId: 'test:deck',
-			connectionId: 'open-1',
-		})
+		controller.sendDeviceControlEvent('test:deck', location, 'press')
+		controller.sendDeviceControlEvent(mangleReferenceSurfaceId('test:deck', 'bank:1-0-0'), location, 'hold')
+		expect(controlEventCalls(ipc)).toEqual([
+			{ surfaceId: 'test:deck', connectionId: 'open-1', controlId: '1/0', event: 'press' },
+			{ surfaceId: 'test:deck', connectionId: 'open-1', controlId: '1/0', event: 'hold' },
+		])
 	})
 
-	test('does not throw or broadcast a request for an unknown or group id', async () => {
+	test('does not throw or broadcast for an unknown or group id', async () => {
 		const first = addPluginPanel(controller, 'test:first', 'open-1')
 		const second = addPluginPanel(controller, 'test:second', 'open-2')
 		const caller = t.createCallerFactory(controller.createTrpcRouter())(testCtx)
-		const groupId = await caller.groupAdd({ baseId: 'haptics', name: 'Haptics' })
+		const groupId = await caller.groupAdd({ baseId: 'cues', name: 'Cues' })
 		await caller.surfaceSetGroup({ surfaceId: 'test:first', groupId })
 		await caller.surfaceSetGroup({ surfaceId: 'test:second', groupId })
 
-		expect(() => controller.triggerDeviceHapticFeedback('missing')).not.toThrow()
-		expect(() => controller.triggerDeviceHapticFeedback(groupId)).not.toThrow()
-		expect(first.ipc.sendWithCb.mock.calls.filter(([event]) => event === 'triggerHapticFeedback')).toHaveLength(0)
-		expect(second.ipc.sendWithCb.mock.calls.filter(([event]) => event === 'triggerHapticFeedback')).toHaveLength(0)
+		const location = { pageNumber: 1, row: 0, column: 0 }
+		expect(() => controller.sendDeviceControlEvent('missing', location, 'press')).not.toThrow()
+		expect(() => controller.sendDeviceControlEvent(groupId, location, 'press')).not.toThrow()
+		expect(controlEventCalls(first.ipc)).toHaveLength(0)
+		expect(controlEventCalls(second.ipc)).toHaveLength(0)
 	})
 
-	test('does not expose the haptic connection generation in the client device list', () => {
+	test('does not expose the connection id in the client device list', () => {
 		addPluginPanel(controller, 'test:deck', 'open-1')
 
 		const surface = controller
@@ -361,7 +363,55 @@ describe('SurfaceController haptic feedback routing', () => {
 			.flatMap((group) => group.surfaces)
 			.find((item) => item.id === 'test:deck')
 		expect(surface).toBeTruthy()
-		expect(surface).not.toHaveProperty('hapticFeedback')
-		expect(surface).not.toHaveProperty('connectionId')
+		expect(JSON.stringify(surface)).not.toContain('open-1')
+	})
+})
+
+describe('Satellite control events', () => {
+	function satellitePanel(overrides: Partial<SatelliteDeviceInfo>) {
+		const { controller } = createController()
+		const info = satelliteDeviceInfo(overrides)
+		const panel = controller.addSatelliteDevice(info)
+		const sendMessage = info.socket.sendMessage as ReturnType<typeof vi.fn>
+		const events = () => sendMessage.mock.calls.filter(([name]) => name === 'CONTROL-EVENT')
+		return { panel, events }
+	}
+
+	test('sends CONTROL-EVENT with the control id to a client that asked for it', () => {
+		const { panel, events } = satellitePanel({ supportsControlEvents: true })
+		expect(panel.info.supportsControlEvents).toBe(true)
+
+		panel.controlEvent(0, 1, 'hold')
+		expect(events()).toEqual([['CONTROL-EVENT', null, 'dev1', { CONTROLID: '1/0', EVENT: 'hold' }]])
+
+		panel.controlEvent(4, 4, 'press')
+		expect(events()).toHaveLength(1)
+	})
+
+	test('uses the key index for a client in grid mode', () => {
+		const { panel, events } = satellitePanel({
+			supportsControlEvents: true,
+			surfaceManifestFromClient: false,
+			gridSize: { columns: 2, rows: 2 },
+			surfaceManifest: {
+				stylePresets: { default: { bitmap: { w: 72, h: 72 } } },
+				controls: { '0/0': { row: 0, column: 0 }, '1/1': { row: 1, column: 1 } },
+			},
+		})
+
+		panel.controlEvent(1, 1, 'press')
+		expect(events()).toEqual([['CONTROL-EVENT', null, 'dev1', { KEY: 3, EVENT: 'press' }]])
+	})
+
+	test('sends nothing to a client that did not ask, or after the device is closed', () => {
+		const legacy = satellitePanel({})
+		expect(legacy.panel.info.supportsControlEvents).toBe(false)
+		legacy.panel.controlEvent(0, 0, 'press')
+		expect(legacy.events()).toHaveLength(0)
+
+		const closed = satellitePanel({ supportsControlEvents: true })
+		closed.panel.quit()
+		closed.panel.controlEvent(0, 0, 'press')
+		expect(closed.events()).toHaveLength(0)
 	})
 })
