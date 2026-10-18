@@ -66,11 +66,13 @@ import {
  *          amount (velocity/step count): sign is the direction, magnitude is the number of steps.
  *          `0` still means a single counter-clockwise step for backwards compatibility. Support is
  *          advertised via ROTARY_AMOUNT in CAPS.
- * 1.15.0 - Add CONTROL_EVENTS to ADD-DEVICE. A surface that sets it receives CONTROL-EVENT with KEY or CONTROLID
- *          and EVENT, when a press of that control ran actions (EVENT=press) or a group set to run while held
- *          fired (EVENT=hold). How to show it is up to the surface. Ignore unknown EVENT values, as more may be added.
+ *
+ * Control events are advertised by CONTROL_EVENTS in CAPS, rather than by an API version, until upstream assigns one.
+ * A client that sets CONTROL_EVENTS on ADD-DEVICE receives CONTROL-EVENT with KEY or CONTROLID and EVENT, when a press
+ * of that control ran actions (EVENT=press) or a group set to run while held fired (EVENT=hold). How to show it is up
+ * to the surface. Clients must ignore unknown EVENT values, as more may be added.
  */
-export const API_VERSION = '1.15.0'
+export const API_VERSION = '1.14.0'
 
 /**
  * Maximum length of a single line (command) the receive buffer will accumulate before the
@@ -460,6 +462,7 @@ export class ServiceSatelliteApi {
 			NONSQUARE: true,
 			BITMAP_FORMATS: SATELLITE_BITMAP_FORMATS.join(','),
 			ROTARY_AMOUNT: true,
+			CONTROL_EVENTS: true,
 		})
 
 		// Register the per-socket state only once the handshake has been sent, so a failure while
